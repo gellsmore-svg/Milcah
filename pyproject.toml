@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "milcah"
+version = "0.2.0"
+description = "Milcah — the Coherence Engine: recursive, multi-LLM coherence pressure-testing of frameworks and worldviews."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+keywords = ["coherence", "reasoning", "ontology", "llm", "epistemics", "agentic"]
+
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+milcah = "milcah.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/gellsmore-svg/Milcah"
+Repository = "https://github.com/gellsmore-svg/Milcah"
+Issues = "https://github.com/gellsmore-svg/Milcah/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]

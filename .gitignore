@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# Internal working/state docs — never publish
+.restart.md
+.restart.md.*.bak
+.session-log.md
+
+# Local config / secrets
+config.yaml
+.env
+
+# OS / editor
+.DS_Store
+*.swp

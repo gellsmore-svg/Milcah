@@ -1,0 +1,25 @@
+name: Feedback
+description: Feedback on Milcah's philosophy, requirements, or architecture.
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Milcah is at the design stage — feedback that sharpens the foundations
+        (philosophy / requirements / architecture) is the most valuable.
+  - type: textarea
+    id: feedback
+    attributes:
+      label: What's your feedback?
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where?
+      description: Which doc/section (philosophy.md, requirements.md FR#, architecture.md).
+  - type: textarea
+    id: why
+    attributes:
+      label: Why does it matter?
+      description: Especially if it touches a non-negotiable (equal burden, permitted uncertainty, observations-first, social-signal exclusion).
