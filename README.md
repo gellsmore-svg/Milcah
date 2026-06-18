@@ -14,11 +14,18 @@ The guiding question for anything it examines:
 
 ## Status
 
-**v0.2 — design.** The philosophy and requirements are set; the engine is being
-built on them. See [`docs/philosophy.md`](docs/philosophy.md),
+**v0.2 — first component built.** The philosophy and requirements are set, and the
+first stage of the engine is real: **ingestion (FR1)** normalises an input into a
+segmented framework, and **reasoning extraction (FR2)** pulls typed reasoning units
+out of it (`milcah ingest` / `milcah extract`). See [`docs/philosophy.md`](docs/philosophy.md),
 [`docs/requirements.md`](docs/requirements.md), and the initial
 [`docs/architecture.md`](docs/architecture.md). Milcah's own process is described
 in Cairn in [`docs/process.cairn.md`](docs/process.cairn.md).
+
+```bash
+milcah extract path/to/framework.md          # typed reasoning units, summarised
+milcah extract path/to/framework.md --json   # full Framework + ReasoningUnit JSON
+```
 
 ## What it does (requirements, in brief)
 
