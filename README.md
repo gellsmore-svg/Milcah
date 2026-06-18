@@ -17,14 +17,19 @@ The guiding question for anything it examines:
 **v0.2 — first component built.** The philosophy and requirements are set, and the
 first stage of the engine is real: **ingestion (FR1)** normalises an input into a
 segmented framework, and **reasoning extraction (FR2)** pulls typed reasoning units
-out of it (`milcah ingest` / `milcah extract`). See [`docs/philosophy.md`](docs/philosophy.md),
+out of it (`milcah ingest` / `milcah extract`). Extraction runs on a deterministic
+rule-based baseline by default, or — for higher-quality typing — on a local LLM
+executed **through Hoglah** (`--extractor hoglah`). See [`docs/philosophy.md`](docs/philosophy.md),
 [`docs/requirements.md`](docs/requirements.md), and the initial
 [`docs/architecture.md`](docs/architecture.md). Milcah's own process is described
 in Cairn in [`docs/process.cairn.md`](docs/process.cairn.md).
 
 ```bash
-milcah extract path/to/framework.md          # typed reasoning units, summarised
-milcah extract path/to/framework.md --json   # full Framework + ReasoningUnit JSON
+milcah extract framework.md                              # deterministic baseline
+milcah extract framework.md --json                       # full Framework + units JSON
+milcah extract framework.md --extractor hoglah --model gemma4:latest
+#   ^ LLM extraction via Hoglah→Ollama (needs a `hoglah run --real` daemon;
+#     install with `pip install -e ".[hoglah]"`)
 ```
 
 ## What it does (requirements, in brief)
