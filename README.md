@@ -76,6 +76,13 @@ python -m venv .venv
 This is early. Open a [feedback issue](../../issues/new/choose), and see
 [CONTRIBUTING.md](CONTRIBUTING.md). Security: [SECURITY.md](SECURITY.md).
 
+## Knowledge bundle
+
+A machine- and human-readable knowledge map of Milcah's concepts and modules is
+published as an [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing)
+bundle under [`okf/`](okf/index.md) — markdown with YAML frontmatter, linked into a
+concept graph.
+
 ## License
 
 [Apache License 2.0](LICENSE).
