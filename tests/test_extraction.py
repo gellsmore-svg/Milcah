@@ -80,3 +80,17 @@ def test_parse_extraction_response_filters_garbage() -> None:
 def test_parse_extraction_response_handles_non_json() -> None:
     fw = ingest_text("x", title="t")
     assert parse_extraction_response("not json at all", fw) == []
+
+
+def test_build_extraction_prompt_segment_excerpt() -> None:
+    fw = ingest_text("the whole framework body", title="T")
+    p = build_extraction_prompt(fw, text="just this excerpt")
+    assert "just this excerpt" in p
+    assert "EXCERPT" in p
+    assert "the whole framework body" not in p  # only the excerpt, not the full text
+
+
+def test_parse_extraction_response_tags_segment_index() -> None:
+    fw = ingest_text("x", title="t")
+    units = parse_extraction_response('[{"type":"claim","text":"a"}]', fw, segment_index=3)
+    assert units[0].segment_index == 3

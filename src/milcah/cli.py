@@ -55,7 +55,8 @@ def _build_extractor(args: argparse.Namespace):
                 transport=args.transport,
                 db_path=args.hoglah_db or HoglahExtractorConfig.db_path,
                 timeout=args.timeout,
-            )
+            ),
+            per_segment=args.per_segment,
         )
     return RuleBasedExtractor()
 
@@ -114,6 +115,11 @@ def main(argv: list[str] | None = None) -> int:
             )
             p.add_argument("--hoglah-db", default=None, help="Hoglah SQLite db (store transport).")
             p.add_argument("--timeout", type=float, default=180.0, help="Per-job timeout (s).")
+            p.add_argument(
+                "--per-segment",
+                action="store_true",
+                help="hoglah: one extraction job per segment (provenance + long-framework safe).",
+            )
 
     args = parser.parse_args(argv)
 

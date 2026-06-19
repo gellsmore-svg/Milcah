@@ -30,6 +30,9 @@ milcah extract framework.md --json                       # full Framework + unit
 milcah extract framework.md --extractor hoglah --model gemma4:latest
 #   ^ LLM extraction via Hoglah→Ollama (needs a `hoglah run --real` daemon;
 #     install with `pip install -e ".[hoglah]"`)
+milcah extract framework.md --extractor hoglah --per-segment
+#   ^ one extraction job per segment, merged with segment provenance —
+#     keeps long frameworks within the model's context window
 ```
 
 ## What it does (requirements, in brief)

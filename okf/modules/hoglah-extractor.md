@@ -23,8 +23,15 @@ daemon.
 - **Injectable `submit(prompt, model) -> output`** — the model call is behind a
   callable, so the extractor is unit-testable without a daemon or broker.
 
+**Per-segment extraction** (`per_segment=True`, CLI `--per-segment`): one
+extraction job per [segment](ingestion.md) instead of one for the whole
+framework, merged with `segment_index` provenance. The store transport submits
+the batch and the daemon runs it at its configured concurrency; this keeps long
+frameworks within the model's context window and lets one bad segment fail
+without losing the rest.
+
 This is the first concrete **multi-LLM-over-Hoglah** integration
-([sibling integration](../concepts/sibling-integration.md)) — the natural next
-steps are per-segment fan-out and extracting with several models then reconciling,
-which is Milcah's [recursive, multi-LLM core](../concepts/recursive-pressure-testing.md).
-Selected from the CLI with `--extractor hoglah`.
+([sibling integration](../concepts/sibling-integration.md)) — the next step is
+extracting with several models then reconciling, which is Milcah's
+[recursive, multi-LLM core](../concepts/recursive-pressure-testing.md). Selected
+from the CLI with `--extractor hoglah` (`--per-segment` for the fan-out).

@@ -116,10 +116,15 @@ def extract(framework: Framework, extractor: Extractor | None = None) -> list[Re
 _VALID_TYPES = {t.value for t in ReasoningUnitType}
 
 
-def build_extraction_prompt(framework: Framework) -> str:
+def build_extraction_prompt(framework: Framework, *, text: str | None = None) -> str:
+    """Build the extraction prompt. By default it covers the whole framework; pass
+    `text` (a single segment's text) to extract from just that excerpt — the basis
+    of per-segment extraction."""
     type_list = ", ".join(t.value for t in ReasoningUnitType)
+    body = text if text is not None else framework.raw_text
+    scope = "EXCERPT of the framework" if text is not None else "FRAMEWORK"
     return (
-        "Extract the units of reasoning from the FRAMEWORK below. For each unit, "
+        f"Extract the units of reasoning from the {scope} below. For each unit, "
         "give its type and its text.\n"
         f"Types (use exactly one per unit): {type_list}.\n"
         "Guidance: observation = an observed phenomenon; claim = a plain assertion; "
@@ -127,7 +132,7 @@ def build_extraction_prompt(framework: Framework) -> str:
         "commitment = required for the framework to survive; bridge = a mechanism "
         "connecting layers; enthymeme = an unstated/implied step; conclusion = a "
         "derived endpoint.\n\n"
-        f"FRAMEWORK (title: {framework.title}):\n{framework.raw_text}\n\n"
+        f"{scope} (framework title: {framework.title}):\n{body}\n\n"
         'Reply with ONLY a JSON array of objects like '
         '[{"type": "claim", "text": "..."}]. No prose.'
     )
@@ -144,9 +149,13 @@ def _extract_json_array(text: str):
         return None
 
 
-def parse_extraction_response(text: str, framework: Framework) -> list[ReasoningUnit]:
+def parse_extraction_response(
+    text: str, framework: Framework, *, segment_index: int | None = None
+) -> list[ReasoningUnit]:
     """Parse an LLM extraction response into reasoning units (hostile input:
-    malformed entries are skipped, unknown types dropped)."""
+    malformed entries are skipped, unknown types dropped). `segment_index` tags
+    the units with their source segment (and keeps their ids distinct across
+    segments) when extracting per-segment."""
     data = _extract_json_array(text)
     if not isinstance(data, list):
         return []
@@ -163,6 +172,7 @@ def parse_extraction_response(text: str, framework: Framework) -> list[Reasoning
                 framework_id=framework.id,
                 unit_type=ReasoningUnitType(raw_type),
                 text=unit_text,
+                segment_index=segment_index,
                 markers=["llm"],
             )
         )
