@@ -14,12 +14,15 @@ The guiding question for anything it examines:
 
 ## Status
 
-**v0.2 — first component built.** The philosophy and requirements are set, and the
-first stage of the engine is real: **ingestion (FR1)** normalises an input into a
-segmented framework, and **reasoning extraction (FR2)** pulls typed reasoning units
-out of it (`milcah ingest` / `milcah extract`). Extraction runs on a deterministic
-rule-based baseline by default, or — for higher-quality typing — on a local LLM
-executed **through Hoglah** (`--extractor hoglah`). See [`docs/philosophy.md`](docs/philosophy.md),
+**v0.2 — early stages built.** The philosophy and requirements are set, and the
+first stages of the engine are real: **ingestion (FR1)** normalises an input into a
+segmented framework, **reasoning extraction (FR2)** pulls typed reasoning units out
+of it (with single-, per-segment, and **multi-LLM** modes, the last reconciling by
+text or by meaning), and **ontology construction (FR3)** builds the worldview tree
+with placement states (`milcah ingest` / `milcah extract` / `milcah ontology`).
+Extraction runs on a deterministic rule-based baseline by default, or — for
+higher-quality typing — on a local LLM executed **through Hoglah**
+(`--extractor hoglah`). See [`docs/philosophy.md`](docs/philosophy.md),
 [`docs/requirements.md`](docs/requirements.md), and the initial
 [`docs/architecture.md`](docs/architecture.md). Milcah's own process is described
 in Cairn in [`docs/process.cairn.md`](docs/process.cairn.md).
@@ -41,6 +44,9 @@ milcah extract framework.md --extractor hoglah \
   --models gemma4:latest,gemma4:e2b,gemma2:2b --reconcile semantic
 #   ^ semantic reconciliation: merge units by MEANING (embeddings) so phrasing
 #     variants count as agreement, not separate units
+milcah ontology framework.md                             # FR3: worldview tree
+#   ^ build the ontology tree from the units — foundations at the root, with an
+#     ontological placement state per node (resolved … contradictory)
 ```
 
 ## What it does (requirements, in brief)

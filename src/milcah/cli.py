@@ -18,6 +18,8 @@ from milcah.extraction import RuleBasedExtractor, extract
 from milcah.hoglah_extractor import HoglahExtractor, HoglahExtractorConfig
 from milcah.ingestion import ingest_file, ingest_text
 from milcah.models import SourceType, to_jsonable
+from milcah.ontology import build_ontology
+from milcah.ontology import to_jsonable as ontology_to_jsonable
 
 PURPOSE = (
     "Milcah — the Coherence Engine.\n"
@@ -91,6 +93,22 @@ def _cmd_extract(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ontology(args: argparse.Namespace) -> int:
+    framework = _read_source(args.source, args.source_type, args.title)
+    units = extract(framework, _build_extractor(args))
+    ontology = build_ontology(framework.id, units)
+    if args.json:
+        print(json.dumps({"framework": to_jsonable(framework), "ontology": ontology_to_jsonable(ontology)}, indent=2))
+    else:
+        print(f"framework {framework.id}: {framework.title}")
+        print(f"  {len(ontology.nodes)} nodes, {len(ontology.roots)} root(s)")
+        placements = Counter(n.placement.value for n in ontology.nodes.values())
+        for state, n in sorted(placements.items()):
+            print(f"    {state}: {n}")
+        print(ontology.render())
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="milcah", description=PURPOSE)
     parser.add_argument("--version", action="version", version=f"milcah {__version__}")
@@ -99,6 +117,7 @@ def main(argv: list[str] | None = None) -> int:
     for name, handler, help_text in (
         ("ingest", _cmd_ingest, "Normalise an input into a segmented framework (FR1)."),
         ("extract", _cmd_extract, "Extract typed reasoning units from an input (FR1+FR2)."),
+        ("ontology", _cmd_ontology, "Build the worldview ontology tree from an input (FR3)."),
     ):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("source", help="Path to the input file, or '-' for stdin.")
@@ -111,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--title", default=None, help="Override the framework title.")
         p.add_argument("--json", action="store_true", help="Emit JSON.")
         p.set_defaults(func=handler)
-        if name == "extract":
+        if name in ("extract", "ontology"):
             p.add_argument(
                 "--extractor",
                 choices=["rule", "hoglah"],

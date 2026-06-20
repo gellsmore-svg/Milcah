@@ -9,7 +9,7 @@ timestamp: 2026-06-19T00:00:00Z
 
 # Modules
 
-What exists today (FR1 + FR2); the rest of the engine (FR3–FR11) is
+What exists today (FR1–FR3); the rest of the engine (FR4–FR11) is
 [designed but not built](../concepts/coherence-engine.md).
 
 - **[Models](models.md)** (`models.py`) — `Framework`, `Segment`, `ReasoningUnit`
@@ -23,4 +23,6 @@ What exists today (FR1 + FR2); the rest of the engine (FR3–FR11) is
   extractor executed through [Hoglah](../concepts/sibling-integration.md) → Ollama.
 - **[Multi-LLM extraction](multi-llm.md)** (`multi_llm.py`) — extract with several
   models, then reconcile by agreement (Milcah's core).
+- **[Ontology construction](ontology.md)** (`ontology.py`) — build the worldview
+  tree with placement states (FR3).
 - **[CLI](cli.md)** (`cli.py`) — `milcah ingest` / `milcah extract`.
