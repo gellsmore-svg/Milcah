@@ -9,8 +9,8 @@ timestamp: 2026-06-19T00:00:00Z
 
 # Modules
 
-What exists today (FR1–FR5); the rest of the engine (FR6–FR11) is
-[designed but not built](../concepts/coherence-engine.md).
+What exists today (FR1–FR5 + the FR11 round controller); the coherence metrics
+(FR6–FR9) and persistence (FR10) are [designed but not built](../concepts/coherence-engine.md).
 
 - **[Models](models.md)** (`models.py`) — `Framework`, `Segment`, `ReasoningUnit`
   + the type enums.
@@ -29,4 +29,6 @@ What exists today (FR1–FR5); the rest of the engine (FR6–FR11) is
   with the five questions, bounded recursion (FR4).
 - **[Counter-framework research](challenge.md)** (`challenge.py`) — objections +
   competing frameworks; symmetric challenge (FR5).
+- **[Round controller](rounds.md)** (`rounds.py`) — drive reason + challenge in
+  rounds to a termination condition (FR11).
 - **[CLI](cli.md)** (`cli.py`) — `milcah ingest` / `milcah extract`.

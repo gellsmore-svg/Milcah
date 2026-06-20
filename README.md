@@ -20,9 +20,10 @@ segmented framework, **reasoning extraction (FR2)** pulls typed reasoning units 
 of it (with single-, per-segment, and **multi-LLM** modes, the last reconciling by
 text or by meaning), **ontology construction (FR3)** builds the worldview tree with
 placement states, the **recursive reasoner (FR4)** pressure-tests each node with the
-five questions, and **counter-framework research (FR5)** generates the strongest
-objections + competing frameworks (`milcah ingest` / `extract` / `ontology` /
-`reason` / `challenge`).
+five questions, **counter-framework research (FR5)** generates the strongest
+objections + competing frameworks, and the **round controller (FR11)** drives
+reason + challenge in rounds to a termination condition (`milcah ingest` /
+`extract` / `ontology` / `reason` / `challenge` / `rounds`).
 Extraction runs on a deterministic rule-based baseline by default, or — for
 higher-quality typing — on a local LLM executed **through Hoglah**
 (`--extractor hoglah`). See [`docs/philosophy.md`](docs/philosophy.md),
@@ -60,6 +61,9 @@ milcah reason framework.md --model gemma4:latest --max-depth 1 --max-nodes 10
 milcah challenge framework.md --model gemma4:latest
 #   ^ FR5: the strongest objections + competing counter-frameworks, applying the
 #     same scrutiny to every framework (burden symmetry)
+milcah rounds framework.md --model gemma4:latest --max-rounds 3
+#   ^ FR11: drive reason + challenge in rounds, stopping on convergence,
+#     repeated objections, the round threshold, or the node budget
 ```
 
 ## What it does (requirements, in brief)

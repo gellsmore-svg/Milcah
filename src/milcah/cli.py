@@ -23,6 +23,7 @@ from milcah.ontology import to_jsonable as ontology_to_jsonable
 from milcah.recursive import make_hoglah_reasoner, recurse_reasoning
 from milcah.challenge import challenge_framework, make_hoglah_challenger
 from milcah.challenge import to_jsonable as challenge_to_jsonable
+from milcah.rounds import make_hoglah_round_steps, run_rounds
 
 PURPOSE = (
     "Milcah — the Coherence Engine.\n"
@@ -182,6 +183,42 @@ def _cmd_challenge(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_rounds(args: argparse.Namespace) -> int:
+    framework = _read_source(args.source, args.source_type, args.title)
+    units = extract(framework, _build_extractor(args))
+    cfg = HoglahExtractorConfig(
+        model=args.model or HoglahExtractorConfig.model,
+        transport=args.transport,
+        db_path=args.hoglah_db or HoglahExtractorConfig.db_path,
+        timeout=args.timeout,
+    )
+    reason, challenge = make_hoglah_round_steps(cfg)
+    report = run_rounds(
+        framework, units, reason=reason, challenge=challenge,
+        max_rounds=args.max_rounds, node_budget=args.node_budget,
+        per_round_nodes=args.per_round_nodes,
+    )
+    if args.json:
+        from milcah.ontology import to_jsonable as onto_json
+
+        print(json.dumps({
+            "framework": to_jsonable(framework),
+            "rounds": [vars(r) for r in report.rounds],
+            "stop_reason": report.stop_reason,
+            "total_nodes": report.total_nodes,
+            "objections": [to_jsonable(o) for o in report.objections],
+            "ontology": onto_json(report.ontology),
+        }, indent=2))
+    else:
+        print(f"framework {framework.id}: {framework.title}")
+        print(f"  {len(report.rounds)} round(s), stop: {report.stop_reason}; "
+              f"{report.total_nodes} nodes, {len(report.objections)} objection(s) total")
+        for r in report.rounds:
+            print(f"    round {r.number}: +{r.new_nodes} nodes, {r.objections} objections, "
+                  f"{r.counter_frameworks} counter-framework(s)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="milcah", description=PURPOSE)
     parser.add_argument("--version", action="version", version=f"milcah {__version__}")
@@ -193,6 +230,7 @@ def main(argv: list[str] | None = None) -> int:
         ("ontology", _cmd_ontology, "Build the worldview ontology tree from an input (FR3)."),
         ("reason", _cmd_reason, "Recursively pressure-test the ontology nodes (FR4)."),
         ("challenge", _cmd_challenge, "Generate objections + counter-frameworks (FR5)."),
+        ("rounds", _cmd_rounds, "Run coherence rounds (reason + challenge) to convergence (FR11)."),
     ):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("source", help="Path to the input file, or '-' for stdin.")
@@ -208,7 +246,11 @@ def main(argv: list[str] | None = None) -> int:
         if name == "reason":
             p.add_argument("--max-depth", type=int, default=1, help="recursion depth threshold (FR11).")
             p.add_argument("--max-nodes", type=int, default=12, help="generated-node budget (FR11).")
-        if name in ("extract", "ontology", "reason", "challenge"):
+        if name == "rounds":
+            p.add_argument("--max-rounds", type=int, default=3, help="recursion threshold: max rounds (FR11).")
+            p.add_argument("--node-budget", type=int, default=30, help="total generated-node budget (FR11).")
+            p.add_argument("--per-round-nodes", type=int, default=10, help="node budget per round.")
+        if name in ("extract", "ontology", "reason", "challenge", "rounds"):
             p.add_argument(
                 "--extractor",
                 choices=["rule", "hoglah"],
