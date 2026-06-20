@@ -21,4 +21,6 @@ What exists today (FR1 + FR2); the rest of the engine (FR3–FR11) is
   rule-based baseline + an LLM seam (FR2).
 - **[Hoglah extractor](hoglah-extractor.md)** (`hoglah_extractor.py`) — the LLM
   extractor executed through [Hoglah](../concepts/sibling-integration.md) → Ollama.
+- **[Multi-LLM extraction](multi-llm.md)** (`multi_llm.py`) — extract with several
+  models, then reconcile by agreement (Milcah's core).
 - **[CLI](cli.md)** (`cli.py`) — `milcah ingest` / `milcah extract`.

@@ -49,15 +49,18 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
 def _build_extractor(args: argparse.Namespace):
     """Select the extractor: deterministic rule-based (default) or LLM-via-Hoglah."""
     if getattr(args, "extractor", "rule") == "hoglah":
-        return HoglahExtractor(
-            HoglahExtractorConfig(
-                model=args.model or HoglahExtractorConfig.model,
-                transport=args.transport,
-                db_path=args.hoglah_db or HoglahExtractorConfig.db_path,
-                timeout=args.timeout,
-            ),
-            per_segment=args.per_segment,
+        cfg = HoglahExtractorConfig(
+            model=args.model or HoglahExtractorConfig.model,
+            transport=args.transport,
+            db_path=args.hoglah_db or HoglahExtractorConfig.db_path,
+            timeout=args.timeout,
         )
+        models = [m.strip() for m in (args.models or "").split(",") if m.strip()]
+        if models:
+            from milcah.multi_llm import MultiLLMExtractor
+
+            return MultiLLMExtractor(models, config=cfg, per_segment=args.per_segment)
+        return HoglahExtractor(cfg, per_segment=args.per_segment)
     return RuleBasedExtractor()
 
 
@@ -76,6 +79,11 @@ def _cmd_extract(args: argparse.Namespace) -> int:
         print(f"  {len(units)} reasoning units from {len(framework.segments)} segments")
         for type_name, n in sorted(counts.items()):
             print(f"    {type_name}: {n}")
+        # Multi-LLM: show how many models agreed per unit (agreement distribution).
+        if units and "agreement" in (units[0].metadata or {}):
+            agree = Counter(u.metadata["agreement"] for u in units)
+            dist = ", ".join(f"{k} model(s): {v}" for k, v in sorted(agree.items(), reverse=True))
+            print(f"  agreement: {dist}")
     return 0
 
 
@@ -119,6 +127,12 @@ def main(argv: list[str] | None = None) -> int:
                 "--per-segment",
                 action="store_true",
                 help="hoglah: one extraction job per segment (provenance + long-framework safe).",
+            )
+            p.add_argument(
+                "--models",
+                default=None,
+                help="hoglah: comma-separated models for multi-LLM extraction "
+                "(extract with each, then reconcile by agreement).",
             )
 
     args = parser.parse_args(argv)
