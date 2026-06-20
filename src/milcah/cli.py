@@ -97,6 +97,18 @@ def _cmd_ontology(args: argparse.Namespace) -> int:
     framework = _read_source(args.source, args.source_type, args.title)
     units = extract(framework, _build_extractor(args))
     ontology = build_ontology(framework.id, units)
+    if getattr(args, "placement", "structural") == "llm":
+        from milcah.ontology_placement import make_placement_runner, refine_placement
+
+        cfg = HoglahExtractorConfig(
+            model=args.model or HoglahExtractorConfig.model,
+            transport=args.transport,
+            db_path=args.hoglah_db or HoglahExtractorConfig.db_path,
+            timeout=args.timeout,
+        )
+        ontology = refine_placement(
+            ontology, submit=make_placement_runner(cfg), model=cfg.model
+        )
     if args.json:
         print(json.dumps({"framework": to_jsonable(framework), "ontology": ontology_to_jsonable(ontology)}, indent=2))
     else:
@@ -173,6 +185,14 @@ def main(argv: list[str] | None = None) -> int:
                 type=float,
                 default=0.82,
                 help="semantic reconcile: cosine threshold for merging units (default 0.82).",
+            )
+        if name == "ontology":
+            p.add_argument(
+                "--placement",
+                choices=["structural", "llm"],
+                default="structural",
+                help="placement: 'structural' (deterministic scaffold) or 'llm' "
+                "(a model assigns placement states, incl. contradictions, via Hoglah).",
             )
 
     args = parser.parse_args(argv)

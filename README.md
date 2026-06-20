@@ -47,6 +47,9 @@ milcah extract framework.md --extractor hoglah \
 milcah ontology framework.md                             # FR3: worldview tree
 #   ^ build the ontology tree from the units — foundations at the root, with an
 #     ontological placement state per node (resolved … contradictory)
+milcah ontology framework.md --placement llm --model gemma4:latest
+#   ^ a model reasons about placement (incl. contradictions) via Hoglah, instead
+#     of the deterministic structural scaffold
 ```
 
 ## What it does (requirements, in brief)

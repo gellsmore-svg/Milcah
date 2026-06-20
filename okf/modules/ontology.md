@@ -26,8 +26,17 @@ partially resolved / multiple placement candidates / dependent on unresolved bri
   bridge → *dependent on unresolved bridge*; an enthymeme or weak
   **consensus** → *partially resolved*; foundations → *resolved*.
 
-`contradictory_placement` is **reserved** for the LLM/debate pass and never
-assigned by the scaffold. This is the FR3 baseline (like the rule-based
-[extractor](extraction.md) was for FR2); the next step is LLM/Mahalath-driven
-placement (debate, contradiction detection), per
+`contradictory_placement` is **reserved** for the reasoned pass and never assigned
+by the scaffold.
+
+**LLM-driven placement** (`ontology_placement.py`, CLI `--placement llm`): a model
+*reasons* about placement — reviews the tree and assigns each node a state
+(including `contradictory_placement`), run through Hoglah. The prompt build
+(`build_placement_prompt`) and response parse (`parse_placement_response`) are pure
+and testable; `refine_placement(submit=...)` applies it (nodes the model omits keep
+their structural placement, tagged `placement_source`). Live: where the structural
+scaffold defaulted all nodes to *resolved*, the model marked an assumption
+*partially_resolved* and a bridge conclusion *dependent_on_unresolved_bridge*.
+
+This is the FR3 baseline graduating toward Mahalath's debated placement, per
 [sibling integration](../concepts/sibling-integration.md). CLI: `milcah ontology`.
