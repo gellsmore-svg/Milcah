@@ -21,6 +21,8 @@ from milcah.models import SourceType, to_jsonable
 from milcah.ontology import build_ontology
 from milcah.ontology import to_jsonable as ontology_to_jsonable
 from milcah.recursive import make_hoglah_reasoner, recurse_reasoning
+from milcah.challenge import challenge_framework, make_hoglah_challenger
+from milcah.challenge import to_jsonable as challenge_to_jsonable
 
 PURPOSE = (
     "Milcah — the Coherence Engine.\n"
@@ -151,6 +153,35 @@ def _cmd_reason(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_challenge(args: argparse.Namespace) -> int:
+    framework = _read_source(args.source, args.source_type, args.title)
+    units = extract(framework, _build_extractor(args))
+    cfg = HoglahExtractorConfig(
+        model=args.model or HoglahExtractorConfig.model,
+        transport=args.transport,
+        db_path=args.hoglah_db or HoglahExtractorConfig.db_path,
+        timeout=args.timeout,
+    )
+    challenge = challenge_framework(
+        framework, units, generate=make_hoglah_challenger(cfg), model=cfg.model
+    )
+    if args.json:
+        print(json.dumps({"framework": to_jsonable(framework), "challenge": challenge_to_jsonable(challenge)}, indent=2))
+    else:
+        print(f"framework {framework.id}: {framework.title}")
+        print(f"  {len(challenge.objections)} objection(s), {len(challenge.counter_frameworks)} counter-framework(s)")
+        if challenge.objections:
+            print("Objections:")
+            for o in challenge.objections:
+                tgt = f"  (targets: {o.metadata.get('targets')})" if o.metadata.get("targets") else ""
+                print(f"  - [{o.type.value}] {o.text[:70]}{tgt}")
+        for cf in challenge.counter_frameworks:
+            print(f"Counter-framework — {cf.name}: {cf.summary[:70]}")
+            for u in cf.units:
+                print(f"    - [{u.type.value}] {u.text[:64]}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="milcah", description=PURPOSE)
     parser.add_argument("--version", action="version", version=f"milcah {__version__}")
@@ -161,6 +192,7 @@ def main(argv: list[str] | None = None) -> int:
         ("extract", _cmd_extract, "Extract typed reasoning units from an input (FR1+FR2)."),
         ("ontology", _cmd_ontology, "Build the worldview ontology tree from an input (FR3)."),
         ("reason", _cmd_reason, "Recursively pressure-test the ontology nodes (FR4)."),
+        ("challenge", _cmd_challenge, "Generate objections + counter-frameworks (FR5)."),
     ):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("source", help="Path to the input file, or '-' for stdin.")
@@ -176,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
         if name == "reason":
             p.add_argument("--max-depth", type=int, default=1, help="recursion depth threshold (FR11).")
             p.add_argument("--max-nodes", type=int, default=12, help="generated-node budget (FR11).")
-        if name in ("extract", "ontology", "reason"):
+        if name in ("extract", "ontology", "reason", "challenge"):
             p.add_argument(
                 "--extractor",
                 choices=["rule", "hoglah"],

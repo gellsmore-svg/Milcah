@@ -19,8 +19,10 @@ first stages of the engine are real: **ingestion (FR1)** normalises an input int
 segmented framework, **reasoning extraction (FR2)** pulls typed reasoning units out
 of it (with single-, per-segment, and **multi-LLM** modes, the last reconciling by
 text or by meaning), **ontology construction (FR3)** builds the worldview tree with
-placement states, and the **recursive reasoner (FR4)** pressure-tests each node
-with the five questions (`milcah ingest` / `extract` / `ontology` / `reason`).
+placement states, the **recursive reasoner (FR4)** pressure-tests each node with the
+five questions, and **counter-framework research (FR5)** generates the strongest
+objections + competing frameworks (`milcah ingest` / `extract` / `ontology` /
+`reason` / `challenge`).
 Extraction runs on a deterministic rule-based baseline by default, or — for
 higher-quality typing — on a local LLM executed **through Hoglah**
 (`--extractor hoglah`). See [`docs/philosophy.md`](docs/philosophy.md),
@@ -55,6 +57,9 @@ milcah reason framework.md --model gemma4:latest --max-depth 1 --max-nodes 10
 #   ^ FR4: recursively pressure-test each ontology node with the five questions
 #     (what supports / must be true / implies / assumes / explains), bounded by
 #     a depth threshold + node budget
+milcah challenge framework.md --model gemma4:latest
+#   ^ FR5: the strongest objections + competing counter-frameworks, applying the
+#     same scrutiny to every framework (burden symmetry)
 ```
 
 ## What it does (requirements, in brief)

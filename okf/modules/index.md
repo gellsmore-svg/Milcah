@@ -9,7 +9,7 @@ timestamp: 2026-06-19T00:00:00Z
 
 # Modules
 
-What exists today (FR1–FR4); the rest of the engine (FR5–FR11) is
+What exists today (FR1–FR5); the rest of the engine (FR6–FR11) is
 [designed but not built](../concepts/coherence-engine.md).
 
 - **[Models](models.md)** (`models.py`) — `Framework`, `Segment`, `ReasoningUnit`
@@ -27,4 +27,6 @@ What exists today (FR1–FR4); the rest of the engine (FR5–FR11) is
   tree with placement states (FR3).
 - **[Recursive reasoner](recursive.md)** (`recursive.py`) — pressure-test each node
   with the five questions, bounded recursion (FR4).
+- **[Counter-framework research](challenge.md)** (`challenge.py`) — objections +
+  competing frameworks; symmetric challenge (FR5).
 - **[CLI](cli.md)** (`cli.py`) — `milcah ingest` / `milcah extract`.
