@@ -21,9 +21,11 @@ of it (with single-, per-segment, and **multi-LLM** modes, the last reconciling 
 text or by meaning), **ontology construction (FR3)** builds the worldview tree with
 placement states, the **recursive reasoner (FR4)** pressure-tests each node with the
 five questions, **counter-framework research (FR5)** generates the strongest
-objections + competing frameworks, and the **round controller (FR11)** drives
-reason + challenge in rounds to a termination condition (`milcah ingest` /
-`extract` / `ontology` / `reason` / `challenge` / `rounds`).
+objections + competing frameworks, the **round controller (FR11)** drives reason +
+challenge in rounds to a termination condition, and the **coherence metrics
+(FR7/FR9)** score the result structurally — excluding popularity, confidence, and
+institutional acceptance (`milcah ingest` / `extract` / `ontology` / `reason` /
+`challenge` / `rounds` / `metrics`).
 Extraction runs on a deterministic rule-based baseline by default, or — for
 higher-quality typing — on a local LLM executed **through Hoglah**
 (`--extractor hoglah`). See [`docs/philosophy.md`](docs/philosophy.md),
@@ -64,6 +66,9 @@ milcah challenge framework.md --model gemma4:latest
 milcah rounds framework.md --model gemma4:latest --max-rounds 3
 #   ^ FR11: drive reason + challenge in rounds, stopping on convergence,
 #     repeated objections, the round threshold, or the node budget
+milcah metrics framework.md                              # FR7/FR9: coherence metrics
+#   ^ structural explanatory-debt + coherence scores — deliberately excluding
+#     popularity, confidence, institutional acceptance, and model-agreement
 ```
 
 ## What it does (requirements, in brief)

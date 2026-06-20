@@ -39,27 +39,28 @@ def test_explicit_depends_on_takes_precedence_and_bridge_dependence():
     assert o.nodes[concl.id].placement == PS.DEPENDENT_ON_UNRESOLVED_BRIDGE
 
 
-def test_placement_multiple_candidates_on_type_disagreement():
+def test_scaffold_placement_is_structural_not_agreement_based():
+    # model-agreement signals (type_votes / consensus) do NOT drive the structural
+    # scaffold — those richer states come from the reasoned LLM placement pass.
     fid = "f"
-    u = _u(fid, RT.CLAIM, "X", metadata={"type_votes": {"claim": 2, "assumption": 1}})
+    u = _u(fid, RT.CLAIM, "X", metadata={"type_votes": {"claim": 2, "assumption": 1}, "consensus": 0.2})
     o = build_ontology(fid, [u])
-    assert o.nodes[u.id].placement == PS.MULTIPLE_PLACEMENT_CANDIDATES
+    assert o.nodes[u.id].placement == PS.RESOLVED
 
 
-def test_placement_partially_resolved_for_enthymeme_and_low_consensus():
+def test_placement_partially_resolved_for_enthymeme():
     fid = "f"
     enth = _u(fid, RT.ENTHYMEME, "obviously it follows")
-    weak = _u(fid, RT.OBSERVATION, "weakly supported", metadata={"consensus": 0.33})
-    o = build_ontology(fid, [enth, weak])
+    o = build_ontology(fid, [enth])
     assert o.nodes[enth.id].placement == PS.PARTIALLY_RESOLVED
-    assert o.nodes[weak.id].placement == PS.PARTIALLY_RESOLVED
 
 
-def test_scaffold_never_assigns_contradictory():
+def test_scaffold_only_assigns_structural_states():
     fid = "f"
     units = [_u(fid, t, f"u{t.value}") for t in RT]
     o = build_ontology(fid, units)
-    assert all(n.placement != PS.CONTRADICTORY_PLACEMENT for n in o.nodes.values())
+    structural = {PS.RESOLVED, PS.PARTIALLY_RESOLVED, PS.DEPENDENT_ON_UNRESOLVED_BRIDGE}
+    assert all(n.placement in structural for n in o.nodes.values())
 
 
 def test_render_and_jsonable():

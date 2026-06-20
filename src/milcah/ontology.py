@@ -124,19 +124,16 @@ def _structural_parent(units: list[ReasoningUnit], index: int) -> str | None:
 
 
 def _placement(node: OntologyNode, nodes: dict[str, OntologyNode]) -> PlacementState:
-    type_votes = node.metadata.get("type_votes")
-    if isinstance(type_votes, dict) and len(type_votes) > 1:
-        # the models disagreed on what this unit *is*
-        return PlacementState.MULTIPLE_PLACEMENT_CANDIDATES
+    # Purely STRUCTURAL placement — type + tree position only. Deliberately uses no
+    # model-agreement signals (consensus / type_votes), so the coherence metrics
+    # that read placement stay free of popularity/confidence (philosophy). The
+    # richer states (multiple_placement_candidates, contradictory_placement) are
+    # assigned by the reasoned LLM placement pass (ontology_placement.py), not here.
     if node.parent_id and nodes[node.parent_id].type in _BRIDGES:
         # it rests on an (unestablished) connecting mechanism
         return PlacementState.DEPENDENT_ON_UNRESOLVED_BRIDGE
     if node.type == ReasoningUnitType.ENTHYMEME:
-        return PlacementState.PARTIALLY_RESOLVED
-    consensus = node.metadata.get("consensus")
-    if isinstance(consensus, (int, float)) and consensus < 0.5:
-        # weak multi-LLM agreement → not firmly placed
-        return PlacementState.PARTIALLY_RESOLVED
+        return PlacementState.PARTIALLY_RESOLVED  # an unstated reasoning step
     return PlacementState.RESOLVED
 
 

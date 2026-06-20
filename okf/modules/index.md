@@ -9,8 +9,9 @@ timestamp: 2026-06-19T00:00:00Z
 
 # Modules
 
-What exists today (FR1–FR5 + the FR11 round controller); the coherence metrics
-(FR6–FR9) and persistence (FR10) are [designed but not built](../concepts/coherence-engine.md).
+What exists today: FR1–FR5, the FR7/FR9 coherence metrics, and the FR11 round
+controller. Fallacy analysis (FR6) and persistence (FR10) are
+[designed but not built](../concepts/coherence-engine.md).
 
 - **[Models](models.md)** (`models.py`) — `Framework`, `Segment`, `ReasoningUnit`
   + the type enums.
@@ -31,4 +32,6 @@ What exists today (FR1–FR5 + the FR11 round controller); the coherence metrics
   competing frameworks; symmetric challenge (FR5).
 - **[Round controller](rounds.md)** (`rounds.py`) — drive reason + challenge in
   rounds to a termination condition (FR11).
+- **[Coherence metrics](metrics.md)** (`metrics.py`) — structural explanatory-debt
+  + coherence scores, excluding social signals (FR7/FR9).
 - **[CLI](cli.md)** (`cli.py`) — `milcah ingest` / `milcah extract`.

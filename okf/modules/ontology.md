@@ -21,10 +21,12 @@ partially resolved / multiple placement candidates / dependent on unresolved bri
   `depends_on` edge, else the nearest preceding *more foundational* unit (by a
   type-tier order: observation/primitive → assumption/commitment/claim →
   bridge/enthymeme → conclusion).
-- **Placement** is read from the signals already present: a multi-LLM **type
-  disagreement** (`type_votes`) → *multiple placement candidates*; resting on a
-  bridge → *dependent on unresolved bridge*; an enthymeme or weak
-  **consensus** → *partially resolved*; foundations → *resolved*.
+- **Placement** is **purely structural** — type + tree position only, using no
+  model-agreement signals (so the [coherence metrics](metrics.md) that read it stay
+  free of popularity/confidence): resting on a bridge → *dependent on unresolved
+  bridge*; an enthymeme → *partially resolved*; otherwise → *resolved*. The richer
+  states (*multiple placement candidates*, *contradictory placement*) come from the
+  reasoned LLM placement pass, not the scaffold.
 
 `contradictory_placement` is **reserved** for the reasoned pass and never assigned
 by the scaffold.

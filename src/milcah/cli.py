@@ -24,6 +24,7 @@ from milcah.recursive import make_hoglah_reasoner, recurse_reasoning
 from milcah.challenge import challenge_framework, make_hoglah_challenger
 from milcah.challenge import to_jsonable as challenge_to_jsonable
 from milcah.rounds import make_hoglah_round_steps, run_rounds
+from milcah.metrics import compute_metrics, to_jsonable as metrics_to_jsonable
 
 PURPOSE = (
     "Milcah — the Coherence Engine.\n"
@@ -219,6 +220,34 @@ def _cmd_rounds(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_metrics(args: argparse.Namespace) -> int:
+    framework = _read_source(args.source, args.source_type, args.title)
+    units = extract(framework, _build_extractor(args))
+    ontology = build_ontology(framework.id, units)
+    if getattr(args, "placement", "structural") == "llm":
+        from milcah.ontology_placement import make_placement_runner, refine_placement
+
+        cfg = HoglahExtractorConfig(
+            model=args.model or HoglahExtractorConfig.model, transport=args.transport,
+            db_path=args.hoglah_db or HoglahExtractorConfig.db_path, timeout=args.timeout,
+        )
+        ontology = refine_placement(ontology, submit=make_placement_runner(cfg), model=cfg.model)
+    metrics = compute_metrics(ontology)
+    if args.json:
+        print(json.dumps({"framework": to_jsonable(framework), "metrics": metrics_to_jsonable(metrics)}, indent=2))
+    else:
+        m = metrics_to_jsonable(metrics)
+        print(f"framework {framework.id}: {framework.title}")
+        print("  explanatory debt (FR7):")
+        for k in ("assumption_load", "bridge_load", "unresolved_load", "dependency_depth"):
+            print(f"    {k}: {m[k]}")
+        print("  coherence (FR9):")
+        for k in ("global_coherence", "breadth", "ontological_completeness", "fracture_density", "uncertainty_burden"):
+            print(f"    {k}: {m[k]}")
+        print("  (excludes popularity / confidence / institutional acceptance / model-agreement)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="milcah", description=PURPOSE)
     parser.add_argument("--version", action="version", version=f"milcah {__version__}")
@@ -231,6 +260,7 @@ def main(argv: list[str] | None = None) -> int:
         ("reason", _cmd_reason, "Recursively pressure-test the ontology nodes (FR4)."),
         ("challenge", _cmd_challenge, "Generate objections + counter-frameworks (FR5)."),
         ("rounds", _cmd_rounds, "Run coherence rounds (reason + challenge) to convergence (FR11)."),
+        ("metrics", _cmd_metrics, "Compute structural coherence metrics (FR7/FR9)."),
     ):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("source", help="Path to the input file, or '-' for stdin.")
@@ -250,7 +280,7 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--max-rounds", type=int, default=3, help="recursion threshold: max rounds (FR11).")
             p.add_argument("--node-budget", type=int, default=30, help="total generated-node budget (FR11).")
             p.add_argument("--per-round-nodes", type=int, default=10, help="node budget per round.")
-        if name in ("extract", "ontology", "reason", "challenge", "rounds"):
+        if name in ("extract", "ontology", "reason", "challenge", "rounds", "metrics"):
             p.add_argument(
                 "--extractor",
                 choices=["rule", "hoglah"],
@@ -294,7 +324,7 @@ def main(argv: list[str] | None = None) -> int:
                 default=0.82,
                 help="semantic reconcile: cosine threshold for merging units (default 0.82).",
             )
-        if name == "ontology":
+        if name in ("ontology", "metrics"):
             p.add_argument(
                 "--placement",
                 choices=["structural", "llm"],
