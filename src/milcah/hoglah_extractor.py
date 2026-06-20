@@ -38,6 +38,7 @@ class HoglahExtractionError(RuntimeError):
 @dataclass
 class HoglahExtractorConfig:
     model: str = DEFAULT_MODEL
+    embedding_model: str = "bge-m3:latest"  # Ollama embedding model (semantic reconciliation)
     timeout: float = 180.0
     transport: str = "store"  # store | kafka | rabbitmq | redis
     # store transport
@@ -117,6 +118,9 @@ class _Submitter:
     def run_batch(self, prompts: list[str], model: str) -> list[str]:
         raise NotImplementedError
 
+    def embed(self, text: str, model: str) -> list[float]:
+        raise NotImplementedError
+
     def close(self) -> None:
         pass
 
@@ -156,6 +160,15 @@ class _StoreSubmitter(_Submitter):
                 )
             outputs.append(result.output or "")
         return outputs
+
+    def embed(self, text: str, model: str) -> list[float]:
+        job_id = self._client.submit_embedding(text, model=model, timeout_seconds=int(self._timeout))
+        result = self._client.wait(job_id, timeout=self._timeout)
+        if result.status != self._JobStatus.COMPLETED:
+            raise HoglahExtractionError(
+                result.error or f"Hoglah embed job {job_id} ended with status {result.status}."
+            )
+        return list(result.embedding or [])
 
     def close(self) -> None:
         close = getattr(self._client, "close", None)
@@ -199,6 +212,17 @@ class _MessagingSubmitter(_Submitter):
     def run_batch(self, prompts: list[str], model: str) -> list[str]:
         return [self.run(p, model) for p in prompts]
 
+    def embed(self, text: str, model: str) -> list[float]:
+        result = self._submitter.submit(
+            kind="embed", prompt=text, model=model, timeout=self._timeout,
+            tags=["milcah", "extraction"], metadata={"source": "milcah"},
+        )
+        if result.get("status") != "completed":
+            raise HoglahExtractionError(
+                result.get("error") or f"Hoglah embed job ended with status {result.get('status')}."
+            )
+        return list(result.get("embedding") or [])
+
     def close(self) -> None:
         self._submitter.close()
 
@@ -210,3 +234,15 @@ def make_hoglah_submitter(config: HoglahExtractorConfig) -> _Submitter:
     if config.transport == "store":
         return _StoreSubmitter(config)
     return _MessagingSubmitter(config)
+
+
+def make_hoglah_embedder(config: HoglahExtractorConfig) -> Callable[[str], list[float]]:
+    """An `embed(text) -> vector` callable backed by Hoglah embed jobs (the
+    configured `embedding_model`), for semantic reconciliation."""
+    submitter = make_hoglah_submitter(config)
+    model = config.embedding_model
+
+    def embed(text: str) -> list[float]:
+        return submitter.embed(text, model)
+
+    return embed

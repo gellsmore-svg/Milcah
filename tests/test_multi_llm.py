@@ -1,6 +1,6 @@
 from milcah.ingestion import ingest_text
 from milcah.models import ReasoningUnit, ReasoningUnitType as RT
-from milcah.multi_llm import MultiLLMExtractor, reconcile_extractions
+from milcah.multi_llm import MultiLLMExtractor, reconcile_extractions, reconcile_semantic
 
 
 def _u(fid, t, text):
@@ -98,3 +98,50 @@ def test_multi_llm_raises_only_if_all_models_fail():
 
     with pytest.raises(RuntimeError, match="all 2 model"):
         MultiLLMExtractor(["a", "b"], extract_with=boom).extract(fw)
+
+
+def test_reconcile_semantic_merges_phrasing_variants():
+    fid = "f"
+    m1 = [_u(fid, RT.PRIMITIVE, "a vorton is a knotted configuration")]
+    m2 = [_u(fid, RT.PRIMITIVE, "vorton is a knotted configuration")]  # phrasing variant
+    m3 = [_u(fid, RT.OBSERVATION, "particles persist over time")]
+
+    def embed(text):  # vorton texts cluster together; particles is orthogonal
+        return [1.0, 0.0] if "vorton" in text else [0.0, 1.0]
+
+    out = reconcile_semantic({"a": m1, "b": m2, "c": m3}, embed=embed, threshold=0.9, total_models=3)
+
+    vorton = next(u for u in out if "vorton" in u.text.lower())
+    assert vorton.metadata["agreement"] == 2  # merged despite different wording
+    assert vorton.metadata["models"] == ["a", "b"]
+    assert "semantic" in vorton.markers
+    assert vorton.text == "a vorton is a knotted configuration"  # most frequent / longest rep
+    # the same input under exact-text reconciliation would NOT merge them:
+    assert max(u.metadata["agreement"] for u in reconcile_extractions({"a": m1, "b": m2, "c": m3})) == 1
+
+
+def test_reconcile_semantic_embed_failure_is_singleton():
+    fid = "f"
+    units = [_u(fid, RT.CLAIM, "x"), _u(fid, RT.CLAIM, "y")]
+    out = reconcile_semantic({"a": units}, embed=lambda t: [], threshold=0.5)
+    assert len(out) == 2  # no embeddings -> nothing merges
+
+
+def test_multi_llm_semantic_mode_uses_injected_embed():
+    fw = ingest_text("body", title="t")
+
+    def fake(framework, model):
+        text = "a claim" if model == "m1" else "claim"
+        return [ReasoningUnit.make(framework_id=framework.id, unit_type=RT.CLAIM, text=text)]
+
+    out = MultiLLMExtractor(
+        ["m1", "m2"], reconcile="semantic", embed=lambda t: [1.0, 0.0], extract_with=fake
+    ).extract(fw)
+    assert len(out) == 1 and out[0].metadata["agreement"] == 2
+
+
+def test_multi_llm_rejects_bad_reconcile_mode():
+    import pytest
+
+    with pytest.raises(ValueError, match="reconcile"):
+        MultiLLMExtractor(["m"], reconcile="telepathy", extract_with=lambda f, m: [])

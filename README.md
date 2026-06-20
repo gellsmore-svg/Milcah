@@ -37,6 +37,10 @@ milcah extract framework.md --extractor hoglah \
   --models gemma4:latest,gemma4:e2b,gemma2:2b
 #   ^ multi-LLM: extract with each model, then reconcile by agreement —
 #     each unit records how many models agreed and how they voted on its type
+milcah extract framework.md --extractor hoglah \
+  --models gemma4:latest,gemma4:e2b,gemma2:2b --reconcile semantic
+#   ^ semantic reconciliation: merge units by MEANING (embeddings) so phrasing
+#     variants count as agreement, not separate units
 ```
 
 ## What it does (requirements, in brief)

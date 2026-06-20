@@ -51,6 +51,7 @@ def _build_extractor(args: argparse.Namespace):
     if getattr(args, "extractor", "rule") == "hoglah":
         cfg = HoglahExtractorConfig(
             model=args.model or HoglahExtractorConfig.model,
+            embedding_model=args.embedding_model or HoglahExtractorConfig.embedding_model,
             transport=args.transport,
             db_path=args.hoglah_db or HoglahExtractorConfig.db_path,
             timeout=args.timeout,
@@ -59,7 +60,10 @@ def _build_extractor(args: argparse.Namespace):
         if models:
             from milcah.multi_llm import MultiLLMExtractor
 
-            return MultiLLMExtractor(models, config=cfg, per_segment=args.per_segment)
+            return MultiLLMExtractor(
+                models, config=cfg, per_segment=args.per_segment,
+                reconcile=args.reconcile, similarity_threshold=args.similarity,
+            )
         return HoglahExtractor(cfg, per_segment=args.per_segment)
     return RuleBasedExtractor()
 
@@ -133,6 +137,23 @@ def main(argv: list[str] | None = None) -> int:
                 default=None,
                 help="hoglah: comma-separated models for multi-LLM extraction "
                 "(extract with each, then reconcile by agreement).",
+            )
+            p.add_argument(
+                "--reconcile",
+                choices=["text", "semantic"],
+                default="text",
+                help="multi-LLM: 'text' (exact) or 'semantic' (merge by meaning via embeddings).",
+            )
+            p.add_argument(
+                "--embedding-model",
+                default=None,
+                help="semantic reconcile: Ollama embedding model (default bge-m3:latest).",
+            )
+            p.add_argument(
+                "--similarity",
+                type=float,
+                default=0.82,
+                help="semantic reconcile: cosine threshold for merging units (default 0.82).",
             )
 
     args = parser.parse_args(argv)

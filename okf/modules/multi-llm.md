@@ -30,6 +30,11 @@ This is the **multi-LLM-over-Hoglah** integration
 [recursive pressure-testing](../concepts/recursive-pressure-testing.md) will build
 on. CLI: `milcah extract --extractor hoglah --models m1,m2,m3`.
 
-*Current limit:* reconciliation matches on normalised **text**, so phrasing
-variants don't merge; **semantic reconciliation** (embeddings or a reconciliation
-model) is the next refinement.
+**Semantic reconciliation** (`reconcile="semantic"`, CLI `--reconcile semantic`):
+`reconcile_semantic` clusters units by the **cosine similarity of their text
+embeddings** (greedy, deterministic, `--similarity` threshold) so phrasing
+variants merge by *meaning* instead of exact text — "a vorton…" and "vorton…"
+become one unit with combined agreement. Embeddings run through Hoglah embed jobs
+(`make_hoglah_embedder`, default `bge-m3:latest`), and `embed(text) -> vector` is
+injectable for testing. The default mode stays exact-text (`reconcile="text"`).
+The next refinement is a reconciliation **model** pass for cases embeddings miss.
