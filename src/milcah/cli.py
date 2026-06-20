@@ -20,6 +20,7 @@ from milcah.ingestion import ingest_file, ingest_text
 from milcah.models import SourceType, to_jsonable
 from milcah.ontology import build_ontology
 from milcah.ontology import to_jsonable as ontology_to_jsonable
+from milcah.recursive import make_hoglah_reasoner, recurse_reasoning
 
 PURPOSE = (
     "Milcah — the Coherence Engine.\n"
@@ -121,6 +122,35 @@ def _cmd_ontology(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_reason(args: argparse.Namespace) -> int:
+    framework = _read_source(args.source, args.source_type, args.title)
+    units = extract(framework, _build_extractor(args))
+    ontology = build_ontology(framework.id, units)
+    cfg = HoglahExtractorConfig(
+        model=args.model or HoglahExtractorConfig.model,
+        transport=args.transport,
+        db_path=args.hoglah_db or HoglahExtractorConfig.db_path,
+        timeout=args.timeout,
+    )
+    result = recurse_reasoning(
+        ontology, expand=make_hoglah_reasoner(cfg),
+        max_depth=args.max_depth, max_new_nodes=args.max_nodes,
+    )
+    if args.json:
+        print(json.dumps({
+            "framework": to_jsonable(framework),
+            "ontology": ontology_to_jsonable(result.ontology),
+            "generated": result.generated,
+            "stop_reason": result.stop_reason,
+        }, indent=2))
+    else:
+        print(f"framework {framework.id}: {framework.title}")
+        print(f"  {result.generated} units generated from {result.expanded_nodes} node(s) "
+              f"(stop: {result.stop_reason}); {len(result.ontology.nodes)} nodes total")
+        print(result.ontology.render())
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="milcah", description=PURPOSE)
     parser.add_argument("--version", action="version", version=f"milcah {__version__}")
@@ -130,6 +160,7 @@ def main(argv: list[str] | None = None) -> int:
         ("ingest", _cmd_ingest, "Normalise an input into a segmented framework (FR1)."),
         ("extract", _cmd_extract, "Extract typed reasoning units from an input (FR1+FR2)."),
         ("ontology", _cmd_ontology, "Build the worldview ontology tree from an input (FR3)."),
+        ("reason", _cmd_reason, "Recursively pressure-test the ontology nodes (FR4)."),
     ):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("source", help="Path to the input file, or '-' for stdin.")
@@ -142,7 +173,10 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--title", default=None, help="Override the framework title.")
         p.add_argument("--json", action="store_true", help="Emit JSON.")
         p.set_defaults(func=handler)
-        if name in ("extract", "ontology"):
+        if name == "reason":
+            p.add_argument("--max-depth", type=int, default=1, help="recursion depth threshold (FR11).")
+            p.add_argument("--max-nodes", type=int, default=12, help="generated-node budget (FR11).")
+        if name in ("extract", "ontology", "reason"):
             p.add_argument(
                 "--extractor",
                 choices=["rule", "hoglah"],
