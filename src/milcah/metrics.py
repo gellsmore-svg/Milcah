@@ -4,7 +4,8 @@ Score a [worldview ontology](ontology.py) by **structure**, not by social signal
 Two families, kept separate:
 
 - **Explanatory debt** (FR7) — what the framework leaves unpaid: assumption load,
-  bridge load, unresolved load, dependency depth.
+  bridge load, unresolved load, dependency depth, and (when fallacy analysis has
+  marked the ontology, FR6) located-fallacy load.
 - **Coherence** (FR9) — global coherence, breadth, ontological completeness,
   fracture density, uncertainty burden.
 
@@ -40,6 +41,7 @@ class CoherenceMetrics:
     bridge_load: int
     unresolved_load: int
     dependency_depth: int
+    fallacy_load: int  # located logical fallacies (FR6), if marked onto the ontology
     # Coherence (FR9)
     global_coherence: float
     breadth: int
@@ -65,7 +67,7 @@ def compute_metrics(ontology: WorldviewOntology) -> CoherenceMetrics:
     nodes = list(ontology.nodes.values())
     n = len(nodes)
     if n == 0:
-        return CoherenceMetrics(0, 0, 0, 0, 0, 0.0, 0, 0.0, 0.0, 0.0)
+        return CoherenceMetrics(0, 0, 0, 0, 0, 0, 0.0, 0, 0.0, 0.0, 0.0)
 
     types = Counter(node.type for node in nodes)
     placements = Counter(node.placement for node in nodes)
@@ -80,6 +82,7 @@ def compute_metrics(ontology: WorldviewOntology) -> CoherenceMetrics:
         bridge_load=sum(types.get(t, 0) for t in _BRIDGES),
         unresolved_load=n - resolved,
         dependency_depth=_max_depth(ontology),
+        fallacy_load=sum(len(node.metadata.get("fallacies", [])) for node in nodes),
         global_coherence=round(resolved / n, 3),
         breadth=len(types),
         ontological_completeness=round(foundations / n, 3),

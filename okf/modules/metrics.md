@@ -13,7 +13,8 @@ timestamp: 2026-06-20T00:00:00Z
 **structure**, in two families kept separate:
 
 - **Explanatory debt (FR7)** — `assumption_load`, `bridge_load`, `unresolved_load`,
-  `dependency_depth`: what the framework leaves unpaid.
+  `dependency_depth`, and `fallacy_load` (located [fallacies](fallacy.md), FR6, when
+  marked onto the ontology): what the framework leaves unpaid.
 - **Coherence (FR9)** — `global_coherence` (share resolved), `breadth` (distinct
   unit types), `ontological_completeness` (share that are foundations),
   `fracture_density` (contradictory + multiple-candidate placements),
@@ -27,6 +28,8 @@ the [structural placement scaffold](ontology.md) uses no agreement signals: so t
 metrics that read it stay clean. Deterministic and fully testable (`EXCLUDED_SIGNALS`
 documents the exclusions).
 
-CLI: `milcah metrics <file>` (add `--placement llm` to score a reasoned placement).
-The remaining metric is **fallacy analysis (FR6)** — evaluating each reasoning step
-against a fallacy set (LLM-backed, the natural next addition).
+CLI: `milcah metrics <file>` (add `--placement llm` to score a reasoned placement;
+add `--with-fallacies` to run [fallacy analysis](fallacy.md) and fold located
+fallacies in — a `contradiction`/`circularity` becomes a fracture, every located
+fallacy counts toward `fallacy_load`). Located fallacies are reasoned, not social,
+signals, so folding them in keeps the metrics faithful to burden symmetry.

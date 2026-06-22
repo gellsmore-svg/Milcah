@@ -29,6 +29,7 @@ from typing import Any, Callable
 
 from milcah.hoglah_extractor import HoglahExtractorConfig, make_hoglah_submitter
 from milcah.models import Framework, ReasoningUnit
+from milcah.ontology import PlacementState, WorldviewOntology
 
 
 class FallacyType(str, Enum):
@@ -183,6 +184,41 @@ def analyse_fallacies(
     steps = number_steps(units, limit=max_steps)
     output = generate(build_fallacy_prompt(framework.title, steps), model)
     return parse_fallacy_response(output, framework.id, steps)
+
+
+# Fallacies that are genuine ontological *fractures* — a node that cannot be
+# coherently placed. Located reasoning, not a model-agreement signal, so (like the
+# LLM placement pass) they may legitimately assign CONTRADICTORY_PLACEMENT, which
+# the structural scaffold never does. The other fallacies are reasoning defects
+# recorded for transparency but do not, by themselves, re-place a node.
+_FRACTURING = {FallacyType.CONTRADICTION, FallacyType.CIRCULARITY}
+
+
+def mark_fallacies(ontology: WorldviewOntology, findings: list[FallacyFinding]) -> int:
+    """Annotate ontology nodes with their located fallacies so the
+    [coherence metrics](metrics.py) can read them (FR6 → FR7/FR9). Opt-in and
+    applied *after* the pure structural scaffold, so the scaffold itself stays
+    free of any reasoned/LLM signal.
+
+    Each finding's node gains `metadata['fallacies']` (fallacy + explanation). A
+    `contradiction`/`circularity` finding additionally elevates the node to
+    `CONTRADICTORY_PLACEMENT` (tagged `placement_source='fallacy'`) so it counts as
+    a fracture. Returns the number of findings that located a node.
+    """
+    marked = 0
+    for f in findings:
+        nid = f.location_unit_id
+        if not nid or nid not in ontology.nodes:
+            continue
+        node = ontology.nodes[nid]
+        node.metadata.setdefault("fallacies", []).append(
+            {"fallacy": f.fallacy.value, "explanation": f.explanation}
+        )
+        if f.fallacy in _FRACTURING:
+            node.placement = PlacementState.CONTRADICTORY_PLACEMENT
+            node.metadata["placement_source"] = "fallacy"
+        marked += 1
+    return marked
 
 
 def make_hoglah_fallacy_analyst(config: HoglahExtractorConfig) -> GenerateFn:

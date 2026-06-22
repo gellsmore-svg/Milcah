@@ -1,14 +1,18 @@
 import json
 
 from milcah.fallacy import (
+    FallacyFinding,
     FallacyType,
     analyse_fallacies,
     build_fallacy_prompt,
+    mark_fallacies,
     number_steps,
     parse_fallacy_response,
 )
 from milcah.ingestion import ingest_text
+from milcah.metrics import compute_metrics
 from milcah.models import ReasoningUnit, ReasoningUnitType as RT
+from milcah.ontology import PlacementState as PS, build_ontology
 
 
 def _u(t, text, depends_on=None):
@@ -92,3 +96,42 @@ def test_analyse_fallacies_with_injected_generate():
     assert report.framework_id == fw.id
     assert captured["model"] == "m"
     assert "Everyone knows matter is topological form." in captured["prompt"]
+
+
+def test_mark_fallacies_annotates_and_fractures():
+    foundation = ReasoningUnit.make(framework_id="f", unit_type=RT.PRIMITIVE, text="a primitive")
+    claim = ReasoningUnit.make(framework_id="f", unit_type=RT.CLAIM, text="a claim")
+    ont = build_ontology("f", [foundation, claim])
+    assert ont.nodes[claim.id].placement is PS.RESOLVED  # structural scaffold: resolved
+
+    findings = [
+        FallacyFinding(fallacy=FallacyType.CONTRADICTION, explanation="cannot both hold",
+                       location_text="a claim", location_unit_id=claim.id, step_index=2),
+        FallacyFinding(fallacy=FallacyType.APPEAL_TO_AUTHORITY, explanation="say-so is not support",
+                       location_text="a primitive", location_unit_id=foundation.id, step_index=1),
+        FallacyFinding(fallacy=FallacyType.EQUIVOCATION, explanation="no location",
+                       location_text="", location_unit_id=None),
+    ]
+    marked = mark_fallacies(ont, findings)
+    assert marked == 2  # the unlocated finding is skipped
+
+    # contradiction elevates the node to a fracture (reasoned, not structural)
+    assert ont.nodes[claim.id].placement is PS.CONTRADICTORY_PLACEMENT
+    assert ont.nodes[claim.id].metadata["placement_source"] == "fallacy"
+    # appeal-to-authority is recorded but does not re-place the node
+    assert ont.nodes[foundation.id].placement is PS.RESOLVED
+    assert ont.nodes[foundation.id].metadata["fallacies"][0]["fallacy"] == "appeal_to_authority"
+
+
+def test_marked_fallacies_feed_the_metrics():
+    claim = ReasoningUnit.make(framework_id="f", unit_type=RT.PRIMITIVE, text="a claim")
+    ont = build_ontology("f", [claim])
+    before = compute_metrics(ont)
+    assert before.fallacy_load == 0 and before.fracture_density == 0.0
+
+    mark_fallacies(ont, [FallacyFinding(
+        fallacy=FallacyType.CIRCULARITY, explanation="assumes its own conclusion",
+        location_text="a claim", location_unit_id=claim.id, step_index=1)])
+    after = compute_metrics(ont)
+    assert after.fallacy_load == 1
+    assert after.fracture_density == 1.0  # circularity made the sole node a fracture

@@ -259,6 +259,15 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
             db_path=args.hoglah_db or HoglahExtractorConfig.db_path, timeout=args.timeout,
         )
         ontology = refine_placement(ontology, submit=make_placement_runner(cfg), model=cfg.model)
+    if getattr(args, "with_fallacies", False):
+        from milcah.fallacy import mark_fallacies
+
+        cfg = HoglahExtractorConfig(
+            model=args.model or HoglahExtractorConfig.model, transport=args.transport,
+            db_path=args.hoglah_db or HoglahExtractorConfig.db_path, timeout=args.timeout,
+        )
+        report = analyse_fallacies(framework, units, generate=make_hoglah_fallacy_analyst(cfg), model=cfg.model)
+        mark_fallacies(ontology, report.findings)
     metrics = compute_metrics(ontology)
     if args.json:
         print(json.dumps({"framework": to_jsonable(framework), "metrics": metrics_to_jsonable(metrics)}, indent=2))
@@ -266,7 +275,7 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
         m = metrics_to_jsonable(metrics)
         print(f"framework {framework.id}: {framework.title}")
         print("  explanatory debt (FR7):")
-        for k in ("assumption_load", "bridge_load", "unresolved_load", "dependency_depth"):
+        for k in ("assumption_load", "bridge_load", "unresolved_load", "dependency_depth", "fallacy_load"):
             print(f"    {k}: {m[k]}")
         print("  coherence (FR9):")
         for k in ("global_coherence", "breadth", "ontological_completeness", "fracture_density", "uncertainty_burden"):
@@ -306,6 +315,12 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--max-nodes", type=int, default=12, help="generated-node budget (FR11).")
         if name == "fallacy":
             p.add_argument("--max-steps", type=int, default=20, help="max reasoning steps to evaluate (FR6).")
+        if name == "metrics":
+            p.add_argument(
+                "--with-fallacies",
+                action="store_true",
+                help="run fallacy analysis (FR6) and fold located fallacies into the metrics.",
+            )
         if name == "rounds":
             p.add_argument("--max-rounds", type=int, default=3, help="recursion threshold: max rounds (FR11).")
             p.add_argument("--node-budget", type=int, default=30, help="total generated-node budget (FR11).")
