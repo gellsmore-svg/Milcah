@@ -9,8 +9,8 @@ timestamp: 2026-06-19T00:00:00Z
 
 # Modules
 
-What exists today: FR1–FR5, the FR7/FR9 coherence metrics, and the FR11 round
-controller. Fallacy analysis (FR6) and persistence (FR10) are
+What exists today: FR1–FR7, FR9, and the FR11 round controller. Only persistence
+(FR10) of the core remains
 [designed but not built](../concepts/coherence-engine.md).
 
 - **[Models](models.md)** (`models.py`) — `Framework`, `Segment`, `ReasoningUnit`
@@ -30,6 +30,8 @@ controller. Fallacy analysis (FR6) and persistence (FR10) are
   with the five questions, bounded recursion (FR4).
 - **[Counter-framework research](challenge.md)** (`challenge.py`) — objections +
   competing frameworks; symmetric challenge (FR5).
+- **[Fallacy analysis](fallacy.md)** (`fallacy.py`) — evaluate each reasoning step
+  for logical fallacies, rhetorical-logic reasoning made dominant (FR6).
 - **[Round controller](rounds.md)** (`rounds.py`) — drive reason + challenge in
   rounds to a termination condition (FR11).
 - **[Coherence metrics](metrics.md)** (`metrics.py`) — structural explanatory-debt

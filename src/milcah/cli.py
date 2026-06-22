@@ -25,6 +25,8 @@ from milcah.challenge import challenge_framework, make_hoglah_challenger
 from milcah.challenge import to_jsonable as challenge_to_jsonable
 from milcah.rounds import make_hoglah_round_steps, run_rounds
 from milcah.metrics import compute_metrics, to_jsonable as metrics_to_jsonable
+from milcah.fallacy import analyse_fallacies, make_hoglah_fallacy_analyst
+from milcah.fallacy import to_jsonable as fallacy_to_jsonable
 
 PURPOSE = (
     "Milcah — the Coherence Engine.\n"
@@ -184,6 +186,31 @@ def _cmd_challenge(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_fallacy(args: argparse.Namespace) -> int:
+    framework = _read_source(args.source, args.source_type, args.title)
+    units = extract(framework, _build_extractor(args))
+    cfg = HoglahExtractorConfig(
+        model=args.model or HoglahExtractorConfig.model,
+        transport=args.transport,
+        db_path=args.hoglah_db or HoglahExtractorConfig.db_path,
+        timeout=args.timeout,
+    )
+    report = analyse_fallacies(
+        framework, units, generate=make_hoglah_fallacy_analyst(cfg),
+        model=cfg.model, max_steps=args.max_steps,
+    )
+    if args.json:
+        print(json.dumps({"framework": to_jsonable(framework), "fallacies": fallacy_to_jsonable(report)}, indent=2))
+    else:
+        print(f"framework {framework.id}: {framework.title}")
+        print(f"  {len(report.findings)} fallacy finding(s)")
+        for f in report.findings:
+            loc = f" @step {f.step_index}: {f.location_text[:50]}" if f.location_text else ""
+            print(f"  - [{f.fallacy.value}]{loc}")
+            print(f"      {f.explanation[:80]}")
+    return 0
+
+
 def _cmd_rounds(args: argparse.Namespace) -> int:
     framework = _read_source(args.source, args.source_type, args.title)
     units = extract(framework, _build_extractor(args))
@@ -259,6 +286,7 @@ def main(argv: list[str] | None = None) -> int:
         ("ontology", _cmd_ontology, "Build the worldview ontology tree from an input (FR3)."),
         ("reason", _cmd_reason, "Recursively pressure-test the ontology nodes (FR4)."),
         ("challenge", _cmd_challenge, "Generate objections + counter-frameworks (FR5)."),
+        ("fallacy", _cmd_fallacy, "Analyse reasoning steps for logical fallacies (FR6)."),
         ("rounds", _cmd_rounds, "Run coherence rounds (reason + challenge) to convergence (FR11)."),
         ("metrics", _cmd_metrics, "Compute structural coherence metrics (FR7/FR9)."),
     ):
@@ -276,11 +304,13 @@ def main(argv: list[str] | None = None) -> int:
         if name == "reason":
             p.add_argument("--max-depth", type=int, default=1, help="recursion depth threshold (FR11).")
             p.add_argument("--max-nodes", type=int, default=12, help="generated-node budget (FR11).")
+        if name == "fallacy":
+            p.add_argument("--max-steps", type=int, default=20, help="max reasoning steps to evaluate (FR6).")
         if name == "rounds":
             p.add_argument("--max-rounds", type=int, default=3, help="recursion threshold: max rounds (FR11).")
             p.add_argument("--node-budget", type=int, default=30, help="total generated-node budget (FR11).")
             p.add_argument("--per-round-nodes", type=int, default=10, help="node budget per round.")
-        if name in ("extract", "ontology", "reason", "challenge", "rounds", "metrics"):
+        if name in ("extract", "ontology", "reason", "challenge", "fallacy", "rounds", "metrics"):
             p.add_argument(
                 "--extractor",
                 choices=["rule", "hoglah"],
