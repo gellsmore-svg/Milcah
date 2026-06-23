@@ -76,12 +76,15 @@ constraints make the naive answer wrong:
    unchanged — agreement buys no coherence credit.
 
 **On Hoglah:** a role × model pair is one Hoglah job (the job carries `model`; the
-role is a job tag). The `store` transport serialises GPU access (concurrency 1) for
-a laptop; the validated broker transports (`kafka`/`rabbitmq`/`redis` via
-`MessagingSubmitter`) give controlled concurrency / fan-out / multiple worker
-daemons when the proposer and challenger should run in parallel or across machines.
-No new execution machinery is required — this ADR is an *orchestration shape* over
-the already-validated submission layer.
+role is a job tag). **Serialisation is the point** — Hoglah exists to run the many
+LLM calls one at a time on resource-constrained hardware, and the roles run
+*sequentially* (proposer → challenger → fallacy → synthesis). The `store` transport
+is the default. The broker transports (`kafka`/`rabbitmq`/`redis` via
+`MessagingSubmitter`) are **not** a parallelism feature: they buy **durability and
+decoupling** — submit and walk away, the daemon executes when it can, results
+survive restarts, and work can be handed to a separate worker if you ever run one —
+execution stays serialised per worker. No new execution machinery is required; this
+ADR is an *orchestration shape* over the already-validated submission layer.
 
 ### Consequences
 
@@ -99,6 +102,6 @@ the already-validated submission layer.
   adopt a frontier `synthesis_model` (the Tirzah ↔ Milcah bridge noted in
   `.restart.md`) — a stronger model writing the final reconciliation over a fuller
   context, still forbidden from forcing certainty.
-- **Open follow-ons:** the per-role model assignment config and whether the
-  Challenger runs as a distinct broker-tagged worker pool are implementation choices
-  left to the multi-LLM build-out; this ADR fixes the *shape*, not the wiring.
+- **Open follow-ons:** per-role model-assignment config. A broker transport may be
+  chosen for *durability* (submit-and-walk-away, restart survival), but **not** for
+  parallelism — roles run serially through Hoglah by design.
