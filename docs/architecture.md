@@ -74,6 +74,9 @@ siblings for memory, ontology, and execution rather than reimplementing them.
 
 - The reasoning-unit + ontology schema, and how much is Mahalath vs. Milcah-local.
 - How burden-symmetry challenge structures are represented and applied uniformly.
-- Multi-LLM orchestration shape (roles? adversarial pairs?) over Hoglah.
+- ~~Multi-LLM orchestration shape (roles? adversarial pairs?) over Hoglah.~~
+  **Resolved by [ADR-001](architecture-decisions.md):** role-based + adversarial
+  (proposer ↔ challenger), rhetorical-logic cluster dominant in every role,
+  disagreement surfaced as uncertainty — never agreement as confidence.
 - Coherence-metric definitions precise enough to be reproducible, not vibes.
 - The human-review surface (FR11) and how unresolved states are presented.
