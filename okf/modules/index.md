@@ -26,6 +26,9 @@ optional later seam.
   models, then reconcile by agreement (Milcah's core).
 - **[Ontology construction](ontology.md)** (`ontology.py`) — build the worldview
   tree with placement states (FR3).
+- **[Ontology debate via Mahalath](ontology-debate.md)** (`ontology_debate.py`) —
+  delegate term placement to Mahalath's debated ontology; polysemy/staleness expose
+  fractures (FR3).
 - **[Recursive reasoner](recursive.md)** (`recursive.py`) — pressure-test each node
   with the five questions, bounded recursion (FR4).
 - **[Counter-framework research](challenge.md)** (`challenge.py`) — objections +

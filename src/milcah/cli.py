@@ -103,22 +103,30 @@ def _cmd_extract(args: argparse.Namespace) -> int:
     return 0
 
 
+def _refine_placement(ontology, args):
+    """Apply the chosen placement pass: 'llm' (a model debates placement) or
+    'mahalath' (delegate to Mahalath's debated ontology). 'structural' = no-op."""
+    placement = getattr(args, "placement", "structural")
+    if placement == "llm":
+        from milcah.ontology_placement import make_placement_runner, refine_placement
+
+        cfg = HoglahExtractorConfig(
+            model=args.model or HoglahExtractorConfig.model, transport=args.transport,
+            db_path=args.hoglah_db or HoglahExtractorConfig.db_path, timeout=args.timeout,
+        )
+        return refine_placement(ontology, submit=make_placement_runner(cfg), model=cfg.model)
+    if placement == "mahalath":
+        from milcah.ontology_debate import debate_placement, make_mahalath_debater
+
+        debate_placement(ontology, make_mahalath_debater(uri=args.mahalath_uri, database=args.mahalath_db))
+    return ontology
+
+
 def _cmd_ontology(args: argparse.Namespace) -> int:
     framework = _read_source(args.source, args.source_type, args.title)
     units = extract(framework, _build_extractor(args))
     ontology = build_ontology(framework.id, units)
-    if getattr(args, "placement", "structural") == "llm":
-        from milcah.ontology_placement import make_placement_runner, refine_placement
-
-        cfg = HoglahExtractorConfig(
-            model=args.model or HoglahExtractorConfig.model,
-            transport=args.transport,
-            db_path=args.hoglah_db or HoglahExtractorConfig.db_path,
-            timeout=args.timeout,
-        )
-        ontology = refine_placement(
-            ontology, submit=make_placement_runner(cfg), model=cfg.model
-        )
+    ontology = _refine_placement(ontology, args)
     if args.json:
         print(json.dumps({"framework": to_jsonable(framework), "ontology": ontology_to_jsonable(ontology)}, indent=2))
     else:
@@ -254,14 +262,7 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
     framework = _read_source(args.source, args.source_type, args.title)
     units = extract(framework, _build_extractor(args))
     ontology = build_ontology(framework.id, units)
-    if getattr(args, "placement", "structural") == "llm":
-        from milcah.ontology_placement import make_placement_runner, refine_placement
-
-        cfg = HoglahExtractorConfig(
-            model=args.model or HoglahExtractorConfig.model, transport=args.transport,
-            db_path=args.hoglah_db or HoglahExtractorConfig.db_path, timeout=args.timeout,
-        )
-        ontology = refine_placement(ontology, submit=make_placement_runner(cfg), model=cfg.model)
+    ontology = _refine_placement(ontology, args)
     if getattr(args, "with_fallacies", False):
         from milcah.fallacy import mark_fallacies
 
@@ -427,11 +428,16 @@ def main(argv: list[str] | None = None) -> int:
         if name in ("ontology", "metrics"):
             p.add_argument(
                 "--placement",
-                choices=["structural", "llm"],
+                choices=["structural", "llm", "mahalath"],
                 default="structural",
-                help="placement: 'structural' (deterministic scaffold) or 'llm' "
-                "(a model assigns placement states, incl. contradictions, via Hoglah).",
+                help="placement: 'structural' (deterministic scaffold), 'llm' (a model "
+                "assigns placement via Hoglah), or 'mahalath' (delegate ontology debate "
+                "to Mahalath — polysemy/staleness expose fractures).",
             )
+            p.add_argument("--mahalath-uri", default="mongodb://localhost:27017",
+                           help="Mahalath MongoDB URI for --placement mahalath.")
+            p.add_argument("--mahalath-db", default="mahalath_dev",
+                           help="Mahalath database for --placement mahalath.")
 
     args = parser.parse_args(argv)
 

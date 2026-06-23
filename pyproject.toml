@@ -17,6 +17,9 @@ dependencies = []
 dev = ["pytest>=8.0"]
 # MongoDB-backed snapshot store (FR10) — the shared family persistence layer.
 mongo = ["pymongo>=4.6"]
+# Delegate ontology debate to Mahalath (FR3): query its debated ontology for
+# polysemy / staleness to inform placement. Needs mahalath + pymongo.
+mahalath = ["mahalath>=1.1.0", "pymongo>=4.6"]
 # LLM-backed extraction executed through Hoglah (FR2 quality path).
 hoglah = ["hoglah>=0.3.0"]
 hoglah-kafka = ["hoglah>=0.3.0", "confluent-kafka>=2.3"]
