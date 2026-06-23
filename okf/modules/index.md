@@ -37,6 +37,8 @@ optional later seam.
   for logical fallacies, rhetorical-logic reasoning made dominant (FR6).
 - **[Round controller](rounds.md)** (`rounds.py`) — drive reason + challenge in
   rounds to a termination condition (FR11).
+- **[Multi-LLM orchestration](orchestration.md)** (`orchestration.py`) — run the four
+  roles (proposer/challenger/fallacy/synthesis), one model each, over Hoglah (ADR-001).
 - **[Coherence metrics](metrics.md)** (`metrics.py`) — structural explanatory-debt
   + coherence scores, excluding social signals (FR7/FR9).
 - **[Persistence](persistence.md)** (`persistence.py`) — timestamped snapshots +

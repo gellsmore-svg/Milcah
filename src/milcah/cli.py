@@ -28,6 +28,8 @@ from milcah.rounds import make_hoglah_round_steps, run_rounds
 from milcah.metrics import compute_metrics, to_jsonable as metrics_to_jsonable
 from milcah.fallacy import analyse_fallacies, make_hoglah_fallacy_analyst
 from milcah.fallacy import to_jsonable as fallacy_to_jsonable
+from milcah.orchestration import OrchestrationConfig, orchestrate
+from milcah.orchestration import to_jsonable as orchestration_to_jsonable
 
 DEFAULT_STORE_DIR = str(Path.home() / ".milcah" / "snapshots")
 
@@ -307,6 +309,40 @@ def _open_store(args: argparse.Namespace):
     return JsonFileStore(args.store_dir), args.store_dir
 
 
+def _cmd_orchestrate(args: argparse.Namespace) -> int:
+    """Role-based multi-LLM orchestration over Hoglah (ADR-001)."""
+    framework = _read_source(args.source, args.source_type, args.title)
+    units = extract(framework, _build_extractor(args))
+    models = {role: getattr(args, f"{role}_model")
+              for role in ("proposer", "challenger", "fallacy", "synthesis")
+              if getattr(args, f"{role}_model", None)}
+    cfg = OrchestrationConfig(
+        default_model=args.model or OrchestrationConfig.default_model,
+        models=models, transport=args.transport,
+        db_path=args.hoglah_db or HoglahExtractorConfig.db_path, timeout=args.timeout,
+        max_depth=args.max_depth, max_nodes=args.max_nodes,
+        max_claims=args.max_claims, max_steps=args.max_steps,
+    )
+    result = orchestrate(framework, units, config=cfg)
+    if args.json:
+        print(json.dumps({"framework": to_jsonable(framework),
+                          "orchestration": orchestration_to_jsonable(result)}, indent=2))
+    else:
+        print(f"framework {framework.id}: {framework.title}")
+        print("  roles (role -> model):")
+        for role, model in result.roles.items():
+            print(f"    {role}: {model}")
+        print(f"  proposer: +{result.reasoning.generated} nodes ({result.reasoning.stop_reason})")
+        print(f"  challenger: {len(result.challenge.objections)} objection(s), "
+              f"{len(result.challenge.counter_frameworks)} counter-framework(s)")
+        print(f"  fallacy: {len(result.fallacies.findings)} finding(s)")
+        m = result.metrics
+        print(f"  synthesis: global_coherence={m.global_coherence} fracture_density={m.fracture_density} "
+              f"uncertainty_burden={m.uncertainty_burden}")
+        print("  (agreement is never scored; disagreement only raises fractures — ADR-001)")
+    return 0
+
+
 def _cmd_history(args: argparse.Namespace) -> int:
     """Show a framework's coherence trend over saved snapshots (FR10)."""
     from milcah.persistence import compute_trend
@@ -342,6 +378,7 @@ def main(argv: list[str] | None = None) -> int:
         ("challenge", _cmd_challenge, "Generate objections + counter-frameworks (FR5)."),
         ("fallacy", _cmd_fallacy, "Analyse reasoning steps for logical fallacies (FR6)."),
         ("rounds", _cmd_rounds, "Run coherence rounds (reason + challenge) to convergence (FR11)."),
+        ("orchestrate", _cmd_orchestrate, "Role-based multi-LLM orchestration over Hoglah (ADR-001)."),
         ("metrics", _cmd_metrics, "Compute structural coherence metrics (FR7/FR9)."),
         ("history", _cmd_history, "Show a framework's coherence trend over saved snapshots (FR10)."),
     ):
@@ -381,7 +418,16 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--max-rounds", type=int, default=3, help="recursion threshold: max rounds (FR11).")
             p.add_argument("--node-budget", type=int, default=30, help="total generated-node budget (FR11).")
             p.add_argument("--per-round-nodes", type=int, default=10, help="node budget per round.")
-        if name in ("extract", "ontology", "reason", "challenge", "fallacy", "rounds", "metrics"):
+        if name == "orchestrate":
+            for role in ("proposer", "challenger", "fallacy", "synthesis"):
+                p.add_argument(f"--{role}-model", default=None,
+                               help=f"model for the {role} role (ADR-001); default --model. "
+                               "Assign diverse models to limit localised corpus bias.")
+            p.add_argument("--max-depth", type=int, default=1, help="proposer recursion depth (FR4/FR11).")
+            p.add_argument("--max-nodes", type=int, default=12, help="proposer generated-node budget (FR11).")
+            p.add_argument("--max-claims", type=int, default=8, help="challenger: max claims to contest (FR5).")
+            p.add_argument("--max-steps", type=int, default=20, help="fallacy: max steps to evaluate (FR6).")
+        if name in ("extract", "ontology", "reason", "challenge", "fallacy", "rounds", "orchestrate", "metrics"):
             p.add_argument(
                 "--extractor",
                 choices=["rule", "hoglah"],
