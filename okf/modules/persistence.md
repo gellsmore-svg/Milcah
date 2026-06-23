@@ -23,15 +23,17 @@ injectable seam:
   from the live analysis objects (deterministic `snapshot_id`).
 - **`Store`** protocol — `save` / `history` / `load`. The default
   **`JsonFileStore`** writes one transparent JSON file per snapshot under
-  `<root>/<framework_id>/`; a **Tirzah-backed** store (the family memory layer, per
-  the architecture) is a later, optional backend implementing the same protocol —
-  nothing here imports it.
+  `<root>/<framework_id>/`. **`MongoStore`** (`store_mongo.py`, the `mongo` extra) is
+  the durable backend over the **shared family MongoDB** (where Tirzah's
+  `mnemosyne_dev` / Mahalath's `mahalath_dev` also live) — snapshots get their own
+  `snapshots` collection rather than being forced through Tirzah's node ingestion.
+  `pymongo` is imported lazily, so the core stays dependency-free.
 - **`compute_trend(snapshots)`** — the time-ordered series + first→last delta for
   each coherence/debt metric (`global_coherence`, `fracture_density`,
   `uncertainty_burden`, …), so a framework improving or degrading under pressure is
   visible.
 
 CLI: `milcah metrics <file> --save` persists a snapshot; `milcah history <file>`
-prints the coherence trend (`global_coherence: 0.5 → 0.8 (↑ 0.3)`). Snapshots live
-under `~/.milcah/snapshots` by default (`--store-dir` to override). The full core
-(FR1–FR11) is now built.
+prints the coherence trend (`global_coherence: 0.5 → 0.8 (↑ 0.3)`). `--store json`
+(default, under `~/.milcah/snapshots`) or `--store mongo --mongo-db milcah_dev` for
+the shared family DB. The full core (FR1–FR11) is now built.

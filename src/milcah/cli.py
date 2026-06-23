@@ -273,11 +273,12 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
         mark_fallacies(ontology, report.findings)
     metrics = compute_metrics(ontology)
     if getattr(args, "save", False):
-        from milcah.persistence import JsonFileStore, build_snapshot
+        from milcah.persistence import build_snapshot
 
         snap = build_snapshot(framework, units, ontology, metrics)
-        snap_id = JsonFileStore(args.store_dir).save(snap)
-        print(f"saved snapshot {snap_id} for framework {framework.id} -> {args.store_dir}")
+        store, where = _open_store(args)
+        snap_id = store.save(snap)
+        print(f"saved snapshot {snap_id} for framework {framework.id} -> {where}")
     if args.json:
         print(json.dumps({"framework": to_jsonable(framework), "metrics": metrics_to_jsonable(metrics)}, indent=2))
     else:
@@ -293,19 +294,31 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
     return 0
 
 
+def _open_store(args: argparse.Namespace):
+    """Build the FR10 store the user asked for; returns (store, human-location)."""
+    if getattr(args, "store", "json") == "mongo":
+        from milcah.store_mongo import make_mongo_store
+
+        store = make_mongo_store(uri=args.mongo_uri, database=args.mongo_db)
+        return store, f"mongo {args.mongo_db}.snapshots ({args.mongo_uri})"
+    from milcah.persistence import JsonFileStore
+
+    return JsonFileStore(args.store_dir), args.store_dir
+
+
 def _cmd_history(args: argparse.Namespace) -> int:
     """Show a framework's coherence trend over saved snapshots (FR10)."""
-    from milcah.persistence import JsonFileStore, compute_trend
+    from milcah.persistence import compute_trend
 
     framework = _read_source(args.source, args.source_type, args.title)
-    store = JsonFileStore(args.store_dir)
+    store, where = _open_store(args)
     snaps = store.history(framework.id)
     trend = compute_trend(snaps)
     if args.json:
         print(json.dumps({"framework_id": framework.id, "trend": trend}, indent=2))
         return 0
     print(f"framework {framework.id}: {framework.title}")
-    print(f"  {trend['count']} snapshot(s) in {args.store_dir}")
+    print(f"  {trend['count']} snapshot(s) in {where}")
     if not snaps:
         print("  (none saved yet — run `milcah metrics <file> --save`)")
         return 0
@@ -355,8 +368,14 @@ def main(argv: list[str] | None = None) -> int:
             )
             p.add_argument("--save", action="store_true", help="persist a timestamped snapshot (FR10).")
         if name in ("metrics", "history"):
+            p.add_argument("--store", choices=["json", "mongo"], default="json",
+                           help="snapshot backend: 'json' (files) or 'mongo' (shared family DB).")
             p.add_argument("--store-dir", default=DEFAULT_STORE_DIR,
-                           help="snapshot store directory (FR10).")
+                           help="snapshot directory for --store json (FR10).")
+            p.add_argument("--mongo-uri", default="mongodb://localhost:27017",
+                           help="MongoDB URI for --store mongo.")
+            p.add_argument("--mongo-db", default="milcah_dev",
+                           help="MongoDB database for --store mongo.")
         if name == "rounds":
             p.add_argument("--max-rounds", type=int, default=3, help="recursion threshold: max rounds (FR11).")
             p.add_argument("--node-budget", type=int, default=30, help="total generated-node budget (FR11).")
