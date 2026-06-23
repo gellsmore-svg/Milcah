@@ -9,9 +9,9 @@ timestamp: 2026-06-19T00:00:00Z
 
 # Modules
 
-What exists today: FR1–FR7, FR9, and the FR11 round controller. Only persistence
-(FR10) of the core remains
-[designed but not built](../concepts/coherence-engine.md).
+What exists today: **the full core — FR1–FR11.** The last piece, persistence (FR10),
+is built as a dependency-free snapshot store with a Tirzah-backed backend as an
+optional later seam.
 
 - **[Models](models.md)** (`models.py`) — `Framework`, `Segment`, `ReasoningUnit`
   + the type enums.
@@ -36,4 +36,6 @@ What exists today: FR1–FR7, FR9, and the FR11 round controller. Only persisten
   rounds to a termination condition (FR11).
 - **[Coherence metrics](metrics.md)** (`metrics.py`) — structural explanatory-debt
   + coherence scores, excluding social signals (FR7/FR9).
+- **[Persistence](persistence.md)** (`persistence.py`) — timestamped snapshots +
+  coherence trend over time; dependency-free JSON store (FR10).
 - **[CLI](cli.md)** (`cli.py`) — `milcah ingest` / `milcah extract`.

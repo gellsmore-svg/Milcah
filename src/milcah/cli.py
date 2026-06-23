@@ -12,6 +12,7 @@ import argparse
 import json
 import sys
 from collections import Counter
+from pathlib import Path
 
 from milcah import __version__
 from milcah.extraction import RuleBasedExtractor, extract
@@ -27,6 +28,8 @@ from milcah.rounds import make_hoglah_round_steps, run_rounds
 from milcah.metrics import compute_metrics, to_jsonable as metrics_to_jsonable
 from milcah.fallacy import analyse_fallacies, make_hoglah_fallacy_analyst
 from milcah.fallacy import to_jsonable as fallacy_to_jsonable
+
+DEFAULT_STORE_DIR = str(Path.home() / ".milcah" / "snapshots")
 
 PURPOSE = (
     "Milcah — the Coherence Engine.\n"
@@ -269,6 +272,12 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
         report = analyse_fallacies(framework, units, generate=make_hoglah_fallacy_analyst(cfg), model=cfg.model)
         mark_fallacies(ontology, report.findings)
     metrics = compute_metrics(ontology)
+    if getattr(args, "save", False):
+        from milcah.persistence import JsonFileStore, build_snapshot
+
+        snap = build_snapshot(framework, units, ontology, metrics)
+        snap_id = JsonFileStore(args.store_dir).save(snap)
+        print(f"saved snapshot {snap_id} for framework {framework.id} -> {args.store_dir}")
     if args.json:
         print(json.dumps({"framework": to_jsonable(framework), "metrics": metrics_to_jsonable(metrics)}, indent=2))
     else:
@@ -281,6 +290,28 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
         for k in ("global_coherence", "breadth", "ontological_completeness", "fracture_density", "uncertainty_burden"):
             print(f"    {k}: {m[k]}")
         print("  (excludes popularity / confidence / institutional acceptance / model-agreement)")
+    return 0
+
+
+def _cmd_history(args: argparse.Namespace) -> int:
+    """Show a framework's coherence trend over saved snapshots (FR10)."""
+    from milcah.persistence import JsonFileStore, compute_trend
+
+    framework = _read_source(args.source, args.source_type, args.title)
+    store = JsonFileStore(args.store_dir)
+    snaps = store.history(framework.id)
+    trend = compute_trend(snaps)
+    if args.json:
+        print(json.dumps({"framework_id": framework.id, "trend": trend}, indent=2))
+        return 0
+    print(f"framework {framework.id}: {framework.title}")
+    print(f"  {trend['count']} snapshot(s) in {args.store_dir}")
+    if not snaps:
+        print("  (none saved yet — run `milcah metrics <file> --save`)")
+        return 0
+    for metric, data in trend["metrics"].items():
+        arrow = "→" if data["delta"] == 0 else ("↑" if data["delta"] > 0 else "↓")
+        print(f"    {metric}: {data['values'][0]} → {data['values'][-1]}  ({arrow} {data['delta']})")
     return 0
 
 
@@ -298,6 +329,7 @@ def main(argv: list[str] | None = None) -> int:
         ("fallacy", _cmd_fallacy, "Analyse reasoning steps for logical fallacies (FR6)."),
         ("rounds", _cmd_rounds, "Run coherence rounds (reason + challenge) to convergence (FR11)."),
         ("metrics", _cmd_metrics, "Compute structural coherence metrics (FR7/FR9)."),
+        ("history", _cmd_history, "Show a framework's coherence trend over saved snapshots (FR10)."),
     ):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("source", help="Path to the input file, or '-' for stdin.")
@@ -321,6 +353,10 @@ def main(argv: list[str] | None = None) -> int:
                 action="store_true",
                 help="run fallacy analysis (FR6) and fold located fallacies into the metrics.",
             )
+            p.add_argument("--save", action="store_true", help="persist a timestamped snapshot (FR10).")
+        if name in ("metrics", "history"):
+            p.add_argument("--store-dir", default=DEFAULT_STORE_DIR,
+                           help="snapshot store directory (FR10).")
         if name == "rounds":
             p.add_argument("--max-rounds", type=int, default=3, help="recursion threshold: max rounds (FR11).")
             p.add_argument("--node-budget", type=int, default=30, help="total generated-node budget (FR11).")
