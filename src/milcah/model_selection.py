@@ -100,7 +100,7 @@ def make_hoglah_model_lister(
             from hoglah import Hoglah
 
             config = {"ollama_host": host} if host else None
-            client = Hoglah(use_real=True, config=config)
+            client = Hoglah(use_real=True, config=config, start_worker=False)
             try:
                 return list(client.available_models())
             finally:

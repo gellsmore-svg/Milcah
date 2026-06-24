@@ -4,12 +4,32 @@ from milcah.model_selection import (
     ROLE_ORDER,
     assign_diverse_models,
     filter_reasoning_models,
+    make_hoglah_model_lister,
 )
 
 
 def test_filter_reasoning_models_drops_embedders():
     avail = ["gemma4:latest", "bge-m3:latest", "nomic-embed-text:latest", "qwen3.6:latest"]
     assert filter_reasoning_models(avail) == ["gemma4:latest", "qwen3.6:latest"]
+
+
+def test_model_lister_is_submitter_only(monkeypatch):
+    created = []
+
+    class FakeHoglah:
+        def __init__(self, **kwargs):
+            created.append(kwargs)
+
+        def available_models(self):
+            return ["m1"]
+
+        def close(self):
+            pass
+
+    import types, sys
+    monkeypatch.setitem(sys.modules, "hoglah", types.SimpleNamespace(Hoglah=FakeHoglah))
+    assert make_hoglah_model_lister()() == ["m1"]
+    assert created == [{"use_real": True, "config": None, "start_worker": False}]
 
 
 def test_assigns_distinct_models_to_every_role_when_enough_available():
