@@ -21,10 +21,10 @@ mongo = ["pymongo>=4.6"]
 # polysemy / staleness to inform placement. Needs mahalath + pymongo.
 mahalath = ["mahalath>=1.1.0", "pymongo>=4.6"]
 # LLM-backed extraction executed through Hoglah (FR2 quality path).
-hoglah = ["hoglah>=0.3.0"]
-hoglah-kafka = ["hoglah>=0.3.0", "confluent-kafka>=2.3"]
-hoglah-rabbitmq = ["hoglah>=0.3.0", "pika>=1.3"]
-hoglah-redis = ["hoglah>=0.3.0", "redis>=5.0"]
+hoglah = ["hoglah>=0.8.0"]
+hoglah-kafka = ["hoglah>=0.8.0", "confluent-kafka>=2.3"]
+hoglah-rabbitmq = ["hoglah>=0.8.0", "pika>=1.3"]
+hoglah-redis = ["hoglah>=0.8.0", "redis>=5.0"]
 
 [project.scripts]
 milcah = "milcah.cli:main"
