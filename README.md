@@ -63,6 +63,11 @@ milcah reason framework.md --model gemma4:latest --max-depth 1 --max-nodes 10
 milcah challenge framework.md --model gemma4:latest
 #   ^ FR5: the strongest objections + competing counter-frameworks, applying the
 #     same scrutiny to every framework (burden symmetry)
+milcah challenge framework.md --model gemma4:latest --web-search \
+  --web-search-url http://localhost:8080 --web-allow-private-search-endpoint
+#   ^ ground FR5 in transient, cited web evidence through SearxNG. Recursive
+#     reasoning derives a separate bounded query from each node. Web text is
+#     marked untrusted and never becomes established knowledge automatically.
 milcah rounds framework.md --model gemma4:latest --max-rounds 3
 #   ^ FR11: drive reason + challenge in rounds, stopping on convergence,
 #     repeated objections, the round threshold, or the node budget

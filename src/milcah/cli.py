@@ -30,6 +30,7 @@ from milcah.fallacy import analyse_fallacies, make_hoglah_fallacy_analyst
 from milcah.fallacy import to_jsonable as fallacy_to_jsonable
 from milcah.orchestration import OrchestrationConfig, orchestrate
 from milcah.orchestration import to_jsonable as orchestration_to_jsonable
+from milcah.web_research import WebResearchClient, WebResearchConfig
 
 DEFAULT_STORE_DIR = str(Path.home() / ".milcah" / "snapshots")
 
@@ -141,6 +142,16 @@ def _cmd_ontology(args: argparse.Namespace) -> int:
     return 0
 
 
+def _web_research_client(args: argparse.Namespace) -> WebResearchClient | None:
+    if not getattr(args, "web_search", False):
+        return None
+    return WebResearchClient(WebResearchConfig(
+        enabled=True, search_base_url=args.web_search_url, timeout_seconds=args.web_timeout,
+        max_results=args.web_max_results, max_pages=args.web_max_pages,
+        allow_private_search_endpoint=args.web_allow_private_search_endpoint,
+    ))
+
+
 def _cmd_reason(args: argparse.Namespace) -> int:
     framework = _read_source(args.source, args.source_type, args.title)
     units = extract(framework, _build_extractor(args))
@@ -152,7 +163,7 @@ def _cmd_reason(args: argparse.Namespace) -> int:
         timeout=args.timeout,
     )
     result = recurse_reasoning(
-        ontology, expand=make_hoglah_reasoner(cfg),
+        ontology, expand=make_hoglah_reasoner(cfg, research=_web_research_client(args)),
         max_depth=args.max_depth, max_new_nodes=args.max_nodes,
     )
     if args.json:
@@ -180,7 +191,7 @@ def _cmd_challenge(args: argparse.Namespace) -> int:
         timeout=args.timeout,
     )
     challenge = challenge_framework(
-        framework, units, generate=make_hoglah_challenger(cfg), model=cfg.model
+        framework, units, generate=make_hoglah_challenger(cfg), model=cfg.model, research=_web_research_client(args)
     )
     if args.json:
         print(json.dumps({"framework": to_jsonable(framework), "challenge": challenge_to_jsonable(challenge)}, indent=2))
@@ -233,7 +244,7 @@ def _cmd_rounds(args: argparse.Namespace) -> int:
         db_path=args.hoglah_db or HoglahExtractorConfig.db_path,
         timeout=args.timeout,
     )
-    reason, challenge = make_hoglah_round_steps(cfg)
+    reason, challenge = make_hoglah_round_steps(cfg, research=_web_research_client(args))
     report = run_rounds(
         framework, units, reason=reason, challenge=challenge,
         max_rounds=args.max_rounds, node_budget=args.node_budget,
@@ -336,7 +347,7 @@ def _cmd_orchestrate(args: argparse.Namespace) -> int:
         models=models, transport=args.transport,
         db_path=args.hoglah_db or HoglahExtractorConfig.db_path, timeout=args.timeout,
         max_depth=args.max_depth, max_nodes=args.max_nodes,
-        max_claims=args.max_claims, max_steps=args.max_steps,
+        max_claims=args.max_claims, max_steps=args.max_steps, research=_web_research_client(args),
     )
     result = orchestrate(framework, units, config=cfg)
     if args.json:
@@ -461,6 +472,13 @@ def main(argv: list[str] | None = None) -> int:
             )
             p.add_argument("--hoglah-db", default=None, help="Hoglah SQLite db (store transport).")
             p.add_argument("--timeout", type=float, default=180.0, help="Per-job timeout (s).")
+            if name in ("reason", "challenge", "rounds", "orchestrate"):
+                p.add_argument("--web-search", action="store_true", help="ground recursive/challenge prompts with bounded web research")
+                p.add_argument("--web-search-url", default="http://localhost:8080", help="SearxNG base URL")
+                p.add_argument("--web-timeout", type=float, default=12.0, help="web request timeout (s)")
+                p.add_argument("--web-max-results", type=int, default=5, help="maximum search results per derived query")
+                p.add_argument("--web-max-pages", type=int, default=2, help="maximum result pages fetched per derived query")
+                p.add_argument("--web-allow-private-search-endpoint", action="store_true", help="allow a private/local SearxNG endpoint; fetched pages remain public-only")
             p.add_argument(
                 "--per-segment",
                 action="store_true",

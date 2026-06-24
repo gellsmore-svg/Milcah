@@ -21,6 +21,7 @@ from typing import Any, Callable
 
 from milcah.hoglah_extractor import HoglahExtractorConfig, make_hoglah_submitter
 from milcah.models import Framework, ReasoningUnit, ReasoningUnitType
+from milcah.web_research import WebResearchClient, render_research_evidence, sources_to_jsonable
 
 _VALID_TYPES = {t.value for t in ReasoningUnitType}
 # Claim-like unit types whose assertions are worth challenging.
@@ -60,7 +61,9 @@ def select_claims(units: list[ReasoningUnit], *, limit: int = 8) -> list[str]:
     return claims
 
 
-def build_challenge_prompt(framework_title: str, claims: list[str]) -> str:
+def build_challenge_prompt(
+    framework_title: str, claims: list[str], research_evidence: str | None = None
+) -> str:
     type_list = ", ".join(t.value for t in ReasoningUnitType)
     numbered = "\n".join(f"{i + 1}. {c}" for i, c in enumerate(claims)) or "(no explicit claims)"
     return (
@@ -75,7 +78,8 @@ def build_challenge_prompt(framework_title: str, claims: list[str]) -> str:
         "explain the same ground, each with a short name, a one-line summary, and "
         "its key claims as typed units.\n"
         f"Types (use exactly one per unit): {type_list}.\n\n"
-        'Reply with ONLY a JSON object: {"objections": [{"type": ..., "text": ..., '
+        + ((research_evidence + "\n\n") if research_evidence else "")
+        + 'Reply with ONLY a JSON object: {"objections": [{"type": ..., "text": ..., '
         '"targets": ...}], "counter_frameworks": [{"name": ..., "summary": ..., '
         '"units": [{"type": ..., "text": ...}]}]}. No prose.'
     )
@@ -148,9 +152,23 @@ def challenge_framework(
     generate: GenerateFn,
     model: str,
     max_claims: int = 8,
+    research: WebResearchClient | None = None,
 ) -> Challenge:
-    prompt = build_challenge_prompt(framework.title, select_claims(units, limit=max_claims))
-    return parse_challenge_response(generate(prompt, model), framework.id)
+    claims = select_claims(units, limit=max_claims)
+    query = " ".join([framework.title, *claims])[:500]
+    sources = research.research(query) if research else []
+    evidence = render_research_evidence(query, sources) if sources else None
+    result = parse_challenge_response(
+        generate(build_challenge_prompt(framework.title, claims, evidence), model), framework.id
+    )
+    provenance = sources_to_jsonable(sources) if sources else None
+    if provenance:
+        for unit in result.objections:
+            unit.metadata["research_sources"] = provenance
+        for counter in result.counter_frameworks:
+            for unit in counter.units:
+                unit.metadata["research_sources"] = provenance
+    return result
 
 
 def make_hoglah_challenger(config: HoglahExtractorConfig) -> GenerateFn:

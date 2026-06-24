@@ -69,3 +69,21 @@ def test_challenge_framework_with_injected_generate():
     ch = challenge_framework(fw, units, generate=gen, model="m")
     assert len(ch.objections) == 1
     assert "Matter is topological form." in captured["prompt"] and captured["model"] == "m"
+
+
+def test_challenge_research_is_in_prompt_and_unit_provenance():
+    from milcah.web_research import ResearchSource
+    fw = ingest_text("Matter is form.", title="Researchable")
+    units = [_u(RT.CLAIM, "Matter is form.")]
+    captured = {}
+    class Research:
+        def research(self, query):
+            captured["query"] = query
+            return [ResearchSource(title="Paper", url="https://example.test/p", snippet="counter evidence")]
+    def gen(prompt, model):
+        captured["prompt"] = prompt
+        return json.dumps({"objections": [{"type": "claim", "text": "objection", "targets": "Matter is form."}], "counter_frameworks": []})
+    result = challenge_framework(fw, units, generate=gen, model="m", research=Research())
+    assert "Researchable" in captured["query"]
+    assert "UNTRUSTED EXTERNAL EVIDENCE" in captured["prompt"]
+    assert result.objections[0].metadata["research_sources"][0]["url"] == "https://example.test/p"

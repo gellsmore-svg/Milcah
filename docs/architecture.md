@@ -80,3 +80,21 @@ siblings for memory, ontology, and execution rather than reimplementing them.
   disagreement surfaced as uncertainty — never agreement as confidence.
 - Coherence-metric definitions precise enough to be reproducible, not vibes.
 - The human-review surface (FR11) and how unresolved states are presented.
+
+
+## Web research boundary
+
+Milcah's proposer and challenger can opt into bounded web research through a
+configured SearxNG JSON endpoint. The proposer derives a query from each ontology
+node; the challenger derives one from the framework title and selected claims.
+Search results and fetched extracts carry URL and retrieval-time provenance and
+are injected into model prompts as **untrusted external evidence**. Instructions
+inside fetched pages are never authoritative. Research is transient: it is not
+promoted into Tirzah/Mahalath or treated as an established premise without a
+separate review and ingestion step.
+
+Network controls permit only HTTP(S), reject credential-bearing URLs, revalidate
+redirects, cap response bytes and extracted characters, and block private or
+non-global result hosts. A local/private SearxNG endpoint requires the explicit
+`--web-allow-private-search-endpoint` flag; that exception applies only to the
+search service, not to fetched result pages.

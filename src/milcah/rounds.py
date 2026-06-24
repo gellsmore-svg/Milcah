@@ -27,6 +27,7 @@ from milcah.hoglah_extractor import HoglahExtractorConfig
 from milcah.models import Framework, ReasoningUnit
 from milcah.ontology import WorldviewOntology, build_ontology
 from milcah.recursive import ReasoningResult, make_hoglah_reasoner, recurse_reasoning
+from milcah.web_research import WebResearchClient
 
 
 @dataclass
@@ -103,10 +104,10 @@ def run_rounds(
 
 
 def make_hoglah_round_steps(
-    config: HoglahExtractorConfig,
+    config: HoglahExtractorConfig, research: WebResearchClient | None = None,
 ) -> tuple[ReasonStep, ChallengeStep]:
     """The real per-round steps, run through Hoglah."""
-    reasoner = make_hoglah_reasoner(config)
+    reasoner = make_hoglah_reasoner(config, research=research)
     challenger = make_hoglah_challenger(config)
 
     def reason(ontology: WorldviewOntology, budget: int) -> ReasoningResult:
@@ -116,7 +117,7 @@ def make_hoglah_round_steps(
         # OntologyNodes are duck-typed claims (they have .type and .text) for
         # select_claims, so the evolving tree is what gets challenged each round.
         return challenge_framework(
-            framework, list(ontology.nodes.values()), generate=challenger, model=config.model
+            framework, list(ontology.nodes.values()), generate=challenger, model=config.model, research=research
         )
 
     return reason, challenge

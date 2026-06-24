@@ -21,6 +21,7 @@ from typing import Any, Callable
 from milcah.hoglah_extractor import HoglahExtractorConfig, make_hoglah_submitter
 from milcah.models import ReasoningUnit, ReasoningUnitType
 from milcah.ontology import OntologyNode, PlacementState, WorldviewOntology
+from milcah.web_research import WebResearchClient, render_research_evidence, sources_to_jsonable
 
 # The five questions, keyed by the relation each answer bears to the source node.
 QUESTIONS: dict[str, str] = {
@@ -43,7 +44,7 @@ class ReasoningResult:
     trace: list[dict[str, Any]] = field(default_factory=list)
 
 
-def build_reasoning_prompt(node: OntologyNode) -> str:
+def build_reasoning_prompt(node: OntologyNode, research_evidence: str | None = None) -> str:
     type_list = ", ".join(t.value for t in ReasoningUnitType)
     questions = "\n".join(f"- {key}: {q}" for key, q in QUESTIONS.items())
     return (
@@ -52,7 +53,8 @@ def build_reasoning_prompt(node: OntologyNode) -> str:
         f"Claim [{node.type.value}]: {node.text}\n\n"
         f"Questions (answer each):\n{questions}\n\n"
         f"Types (use exactly one per unit): {type_list}.\n\n"
-        'Reply with ONLY a JSON object whose keys are the five question keys and '
+        + ((research_evidence + "\n\n") if research_evidence else "")
+        + 'Reply with ONLY a JSON object whose keys are the five question keys and '
         'whose values are arrays of {"type": ..., "text": ...}, e.g. '
         '{"supports": [{"type": "observation", "text": "..."}], "must_be_true": [], '
         '"implies": [], "assumptions": [], "explains": []}. No prose.'
@@ -71,7 +73,8 @@ def _extract_json_object(text: str):
 
 
 def parse_reasoning_response(
-    text: str, framework_id: str, *, source_node_id: str | None = None
+    text: str, framework_id: str, *, source_node_id: str | None = None,
+    research_sources: list[dict[str, Any]] | None = None,
 ) -> list[ReasoningUnit]:
     """Parse a five-question response into new reasoning units, each tagged with
     the `relation` (which question produced it) and its source node. Hostile
@@ -96,7 +99,7 @@ def parse_reasoning_response(
                     unit_type=ReasoningUnitType(raw_type),
                     text=unit_text,
                     markers=["generated", relation],
-                    metadata={"relation": relation, "source_node": source_node_id, "generated": True},
+                    metadata={"relation": relation, "source_node": source_node_id, "generated": True, **({"research_sources": research_sources} if research_sources else {})},
                 )
             )
     return units
@@ -156,13 +159,20 @@ def recurse_reasoning(
     return result
 
 
-def make_hoglah_reasoner(config: HoglahExtractorConfig) -> ExpandFn:
+def make_hoglah_reasoner(
+    config: HoglahExtractorConfig, research: WebResearchClient | None = None
+) -> ExpandFn:
     """An `expand(node) -> units` that asks the five questions through Hoglah."""
     submitter = make_hoglah_submitter(config)
     model = config.model
 
     def expand(node: OntologyNode, framework_id: str) -> list[ReasoningUnit]:
-        output = submitter.run(build_reasoning_prompt(node), model)
-        return parse_reasoning_response(output, framework_id, source_node_id=node.id)
+        sources = research.research(node.text) if research else []
+        evidence = render_research_evidence(node.text, sources) if sources else None
+        output = submitter.run(build_reasoning_prompt(node, evidence), model)
+        return parse_reasoning_response(
+            output, framework_id, source_node_id=node.id,
+            research_sources=sources_to_jsonable(sources) if sources else None,
+        )
 
     return expand

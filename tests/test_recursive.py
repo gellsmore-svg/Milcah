@@ -7,6 +7,7 @@ from milcah.recursive import (
     build_reasoning_prompt,
     parse_reasoning_response,
     recurse_reasoning,
+    make_hoglah_reasoner,
 )
 
 
@@ -83,3 +84,24 @@ def test_recurse_goes_two_levels_deep():
     assert res.generated == 2
     depths = sorted(n.metadata.get("depth", 0) for n in res.ontology.nodes.values() if n.parent_id)
     assert depths == [1, 2]
+
+
+def test_reasoner_uses_claim_derived_research_and_records_provenance(monkeypatch):
+    from milcah.hoglah_extractor import HoglahExtractorConfig
+    from milcah.web_research import ResearchSource
+    import milcah.recursive as recursive
+    captured = {}
+    class Research:
+        def research(self, query):
+            captured["query"] = query
+            return [ResearchSource(title="Source", url="https://example.test", snippet="evidence")]
+    class Submitter:
+        def run(self, prompt, model):
+            captured["prompt"] = prompt
+            return json.dumps({"supports": [{"type": "observation", "text": "supported"}]})
+    monkeypatch.setattr(recursive, "make_hoglah_submitter", lambda config: Submitter())
+    node = next(iter(_onto("derived research need").nodes.values()))
+    units = make_hoglah_reasoner(HoglahExtractorConfig(), research=Research())(node, "f")
+    assert captured["query"] == "derived research need"
+    assert "UNTRUSTED EXTERNAL EVIDENCE" in captured["prompt"]
+    assert units[0].metadata["research_sources"][0]["url"] == "https://example.test"

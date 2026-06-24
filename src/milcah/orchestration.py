@@ -34,6 +34,7 @@ from milcah.metrics import CoherenceMetrics, compute_metrics
 from milcah.models import Framework, ReasoningUnit
 from milcah.ontology import WorldviewOntology, build_ontology
 from milcah.recursive import ReasoningResult, recurse_reasoning
+from milcah.web_research import WebResearchClient
 
 
 class Role(str, Enum):
@@ -58,6 +59,7 @@ class OrchestrationConfig:
     max_nodes: int = 12
     max_claims: int = 8
     max_steps: int = 20
+    research: WebResearchClient | None = None
 
     def model_for(self, role: Role) -> str:
         return self.models.get(role.value, self.default_model)
@@ -88,7 +90,7 @@ GenerateFn = Callable[[str, str], str]          # challenger / fallacy: generate
 def _default_expand(config: OrchestrationConfig) -> ExpandFn:
     from milcah.recursive import make_hoglah_reasoner
 
-    return make_hoglah_reasoner(config.hoglah_config(Role.PROPOSER))
+    return make_hoglah_reasoner(config.hoglah_config(Role.PROPOSER), research=config.research)
 
 
 def _default_challenge(config: OrchestrationConfig) -> GenerateFn:
@@ -139,7 +141,7 @@ def orchestrate(
     challenger_model = config.model_for(Role.CHALLENGER)
     challenge_result = challenge_framework(
         framework, units, generate=challenge or _default_challenge(config),
-        model=challenger_model, max_claims=config.max_claims,
+        model=challenger_model, max_claims=config.max_claims, research=config.research,
     )
     roles[Role.CHALLENGER.value] = challenger_model
     trace.append({"role": "challenger", "model": challenger_model,
