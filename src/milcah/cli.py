@@ -316,6 +316,21 @@ def _cmd_orchestrate(args: argparse.Namespace) -> int:
     models = {role: getattr(args, f"{role}_model")
               for role in ("proposer", "challenger", "fallacy", "synthesis")
               if getattr(args, f"{role}_model", None)}
+    if getattr(args, "auto_models", False):
+        from milcah.model_selection import (
+            ROLE_ORDER, assign_diverse_models, filter_reasoning_models,
+            make_hoglah_model_lister,
+        )
+
+        available = filter_reasoning_models(make_hoglah_model_lister()())
+        if available:
+            print(f"  auto-models: {len(available)} discovered; assigning distinct models per role")
+        else:
+            print("  auto-models: none discoverable from Hoglah — unpinned roles use the default")
+        models = assign_diverse_models(
+            ROLE_ORDER, available, pinned=models,
+            default=args.model or OrchestrationConfig.default_model,
+        )
     cfg = OrchestrationConfig(
         default_model=args.model or OrchestrationConfig.default_model,
         models=models, transport=args.transport,
@@ -423,6 +438,9 @@ def main(argv: list[str] | None = None) -> int:
                 p.add_argument(f"--{role}-model", default=None,
                                help=f"model for the {role} role (ADR-001); default --model. "
                                "Assign diverse models to limit localised corpus bias.")
+            p.add_argument("--auto-models", action="store_true",
+                           help="auto-assign DISTINCT models per role from Hoglah's available "
+                           "models (ADR-001 bias reduction); any --*-model still pins that role.")
             p.add_argument("--max-depth", type=int, default=1, help="proposer recursion depth (FR4/FR11).")
             p.add_argument("--max-nodes", type=int, default=12, help="proposer generated-node budget (FR11).")
             p.add_argument("--max-claims", type=int, default=8, help="challenger: max claims to contest (FR5).")

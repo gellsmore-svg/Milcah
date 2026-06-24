@@ -23,7 +23,7 @@ orchestration is unit-testable offline without a daemon.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable
 
