@@ -42,6 +42,13 @@ def filter_reasoning_models(models: Iterable[str]) -> list[str]:
             if m and not any(mark in m.lower() for mark in EMBEDDING_MARKERS)]
 
 
+# Deliberately NO model-*size* filter. Multi-backend dispatch fans jobs to backends
+# the orchestrator doesn't run on, so the memory budget that decides whether a model
+# fits is not knowable from here — any host-fit threshold would be a guess and wrong
+# exactly when work runs on a remote backend. Model size is left to the operator: pin
+# an oversized role with --<role>-model.
+
+
 def assign_diverse_models(
     roles: Iterable[str],
     available: Iterable[str],
