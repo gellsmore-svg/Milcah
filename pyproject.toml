@@ -11,7 +11,9 @@ requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 keywords = ["coherence", "reasoning", "ontology", "llm", "epistemics", "agentic"]
 
-dependencies = []
+dependencies = [
+    "keturah>=0.1",  # LLM-interface manifest (build_manifest / to_mcp)
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
