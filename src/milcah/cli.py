@@ -1,9 +1,9 @@
 """CLI for Milcah.
 
-The full engine is not built yet (v0.2). What *is* real is the first stage:
-`ingest` (FR1) normalises an input into a segmented framework, and `extract`
-(FR2) pulls typed reasoning units out of it. With no subcommand, the CLI prints
-the project's purpose and pointers.
+The v0.2 core is built: ingestion, extraction, ontology construction, recursive
+reasoning, counter-framework challenge, fallacy analysis, rounds, metrics,
+persistence history, and role-based orchestration. With no subcommand, the CLI
+prints the project's purpose and pointers.
 """
 
 from __future__ import annotations
@@ -391,6 +391,23 @@ def _cmd_history(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_serve(args: argparse.Namespace) -> int:
+    """Serve the read-only snapshot viewer (FR10 trend in the browser)."""
+    try:
+        import uvicorn
+
+        from milcah.web import create_app
+    except ImportError as exc:
+        print(f"error: the viewer needs the 'web' extra ({exc}). "
+              "Install with: pip install milcah[web]")
+        return 1
+    store, where = _open_store(args)
+    print(f"Milcah snapshot viewer on http://{args.host}:{args.port} — store: {where}")
+    uvicorn.run(create_app(store, store_label=str(where)),
+                host=args.host, port=args.port, log_level="warning")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="milcah", description=PURPOSE)
     parser.add_argument("--version", action="version", version=f"milcah {__version__}")
@@ -521,6 +538,20 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--mahalath-db", default="mahalath_dev",
                            help="Mahalath database for --placement mahalath.")
 
+    # serve has no `source` argument, so it sits outside the shared loop above.
+    p_serve = sub.add_parser("serve", help="Serve the read-only snapshot viewer (FR10 in the browser).")
+    p_serve.add_argument("--host", default="127.0.0.1", help="Bind address (keep local; no auth).")
+    p_serve.add_argument("--port", type=int, default=8791, help="Port for the viewer.")
+    p_serve.add_argument("--store", choices=["json", "mongo"], default="json",
+                         help="snapshot backend: 'json' (files) or 'mongo' (shared family DB).")
+    p_serve.add_argument("--store-dir", default=DEFAULT_STORE_DIR,
+                         help="snapshot directory for --store json (FR10).")
+    p_serve.add_argument("--mongo-uri", default="mongodb://localhost:27017",
+                         help="MongoDB URI for --store mongo.")
+    p_serve.add_argument("--mongo-db", default="milcah_dev",
+                         help="MongoDB database for --store mongo.")
+    p_serve.set_defaults(func=_cmd_serve)
+
     args = parser.parse_args(argv)
 
     if getattr(args, "func", None) is not None:
@@ -528,7 +559,10 @@ def main(argv: list[str] | None = None) -> int:
 
     # No subcommand — point to the design.
     print(PURPOSE)
-    print("Status: v0.2. Built: ingest (FR1), extract (FR2). See docs/architecture.md.")
+    print(
+        "Status: v0.2. Built: ingest, extract, ontology, reason, challenge, "
+        "fallacy, rounds, orchestrate, metrics, and history. See docs/architecture.md."
+    )
     return 0
 
 

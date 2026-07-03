@@ -42,6 +42,21 @@ class MongoStore:
         doc = self._col.find_one({"_id": snapshot_id, "framework_id": framework_id})
         return Snapshot.from_jsonable(doc) if doc else None
 
+    def frameworks(self) -> list[dict[str, Any]]:
+        # Grouped client-side (not $group) so any collection-like object works;
+        # snapshot volume is small (family scale).
+        from milcah.persistence import _framework_row
+
+        by_framework: dict[str, list[Snapshot]] = {}
+        for doc in self._col.find({}):
+            snap = Snapshot.from_jsonable(doc)
+            by_framework.setdefault(snap.framework_id, []).append(snap)
+        rows = [
+            _framework_row(sorted(snaps, key=lambda s: s.created_at))
+            for snaps in by_framework.values()
+        ]
+        return sorted(rows, key=lambda r: r["latest_created_at"], reverse=True)
+
 
 def make_mongo_store(
     uri: str = "mongodb://localhost:27017",

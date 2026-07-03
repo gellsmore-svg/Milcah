@@ -117,6 +117,19 @@ class Store(Protocol):
     def save(self, snapshot: Snapshot) -> str: ...
     def history(self, framework_id: str) -> list[Snapshot]: ...
     def load(self, framework_id: str, snapshot_id: str) -> Snapshot | None: ...
+    def frameworks(self) -> list[dict[str, Any]]: ...
+
+
+def _framework_row(snaps: list["Snapshot"]) -> dict[str, Any]:
+    """Index row for one framework's time-ordered snapshots (latest wins)."""
+    latest = snaps[-1]
+    return {
+        "framework_id": latest.framework_id,
+        "framework_title": latest.framework_title,
+        "snapshot_count": len(snaps),
+        "latest_created_at": latest.created_at,
+        "latest_metrics": latest.metrics,
+    }
 
 
 class JsonFileStore:
@@ -151,6 +164,18 @@ class JsonFileStore:
             if snap.snapshot_id == snapshot_id:
                 return snap
         return None
+
+    def frameworks(self) -> list[dict[str, Any]]:
+        if not self.root.exists():
+            return []
+        rows = []
+        for directory in self.root.iterdir():
+            if not directory.is_dir():
+                continue
+            snaps = self.history(directory.name)
+            if snaps:
+                rows.append(_framework_row(snaps))
+        return sorted(rows, key=lambda r: r["latest_created_at"], reverse=True)
 
 
 def compute_trend(snapshots: list[Snapshot]) -> dict[str, Any]:
