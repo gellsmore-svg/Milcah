@@ -292,6 +292,16 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
         snap = build_snapshot(framework, units, ontology, metrics)
         store, where = _open_store(args)
         snap_id = store.save(snap)
+        from milcah.tracing import SNAPSHOT_SAVED, get_witness
+
+        get_witness().emit(
+            SNAPSHOT_SAVED,
+            trace_id=snap_id,
+            summary=f"saved coherence snapshot for '{framework.title}'",
+            framework_id=framework.id,
+            snapshot_id=snap_id,
+            global_coherence=snap.metrics.get("global_coherence"),
+        )
         print(f"saved snapshot {snap_id} for framework {framework.id} -> {where}")
     if args.json:
         print(json.dumps({"framework": to_jsonable(framework), "metrics": metrics_to_jsonable(metrics)}, indent=2))

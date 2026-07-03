@@ -26,6 +26,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable
+from uuid import uuid4
 
 from milcah.challenge import Challenge, challenge_framework
 from milcah.fallacy import FallacyReport, analyse_fallacies, mark_fallacies
@@ -126,6 +127,18 @@ def orchestrate(
     trace: list[dict[str, Any]] = []
     ontology = build_ontology(framework.id, units)
 
+    from milcah.tracing import ORCHESTRATION_COMPLETED, ORCHESTRATION_STARTED, get_witness
+
+    witness = get_witness()
+    run_trace_id = f"milcah-{framework.id}-{uuid4().hex[:12]}"
+    witness.emit(
+        ORCHESTRATION_STARTED,
+        trace_id=run_trace_id,
+        status="started",
+        summary=f"orchestration started for '{framework.title}' ({len(units)} units)",
+        framework_id=framework.id,
+    )
+
     # Proposer (FR4) — expand the worldview.
     proposer_model = config.model_for(Role.PROPOSER)
     reasoning = recurse_reasoning(
@@ -166,6 +179,21 @@ def orchestrate(
     trace.append({"role": "synthesis", "model": synthesis_model,
                   "global_coherence": metrics.global_coherence,
                   "fracture_density": metrics.fracture_density})
+
+    witness.emit(
+        ORCHESTRATION_COMPLETED,
+        trace_id=run_trace_id,
+        summary=(
+            f"orchestration completed for '{framework.title}': "
+            f"coherence={metrics.global_coherence} fractures={metrics.fracture_density}"
+        ),
+        framework_id=framework.id,
+        roles=roles,
+        global_coherence=metrics.global_coherence,
+        fracture_density=metrics.fracture_density,
+        objections=len(challenge_result.objections),
+        fallacy_findings=len(fallacies.findings),
+    )
 
     return OrchestrationResult(
         ontology=ontology, metrics=metrics, reasoning=reasoning,
