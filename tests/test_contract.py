@@ -9,11 +9,13 @@ from milcah.contract import (
     validate_specialist_request,
     validate_specialist_result,
 )
+from milcah.models import ReasoningUnit, ReasoningUnitType as RT
 
 
 def test_canonical_fixtures_conform():
     assert validate_specialist_request(CANONICAL_REQUEST) == []
     assert validate_specialist_result(CANONICAL_RESULT) == []
+    assert validate_specialist_request({"query": "query-only uses default mode"}) == []
 
 
 def test_validation_catches_drift():
@@ -64,6 +66,39 @@ def test_adapter_is_robust_to_a_minimal_result():
     result = specialist_result_from_orchestration(SimpleNamespace())
     assert validate_specialist_result(result) == []  # empty-but-conformant
     assert result.confidence == 0.0
+
+
+def test_adapter_maps_real_reasoning_unit_enums():
+    unit = ReasoningUnit.make(framework_id="fw", unit_type=RT.CLAIM, text="X holds")
+    result = specialist_result_from_orchestration(
+        SimpleNamespace(reasoning=SimpleNamespace(units=[unit]))
+    )
+    assert result.claims == ["X holds"]
+
+
+def test_adapter_maps_research_provenance_to_citations():
+    objection = SimpleNamespace(
+        text="A fails when Y",
+        metadata={"research_sources": [{"url": "https://example.test/a"}]},
+    )
+    counter_unit = SimpleNamespace(
+        text="Rival claim",
+        metadata={
+            "research_sources": [
+                SimpleNamespace(url="https://example.test/b"),
+                {"url": "https://example.test/a"},
+            ]
+        },
+    )
+    result = specialist_result_from_orchestration(
+        SimpleNamespace(
+            challenge=SimpleNamespace(
+                objections=[objection],
+                counter_frameworks=[SimpleNamespace(title="Rival", units=[counter_unit])],
+            )
+        )
+    )
+    assert result.citations == ["https://example.test/a", "https://example.test/b"]
 
 
 def test_request_dataclass_roundtrips():

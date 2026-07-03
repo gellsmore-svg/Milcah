@@ -14,18 +14,19 @@ The guiding question for anything it examines:
 
 ## Status
 
-**v0.2 — early stages built.** The philosophy and requirements are set, and the
-first stages of the engine are real: **ingestion (FR1)** normalises an input into a
-segmented framework, **reasoning extraction (FR2)** pulls typed reasoning units out
-of it (with single-, per-segment, and **multi-LLM** modes, the last reconciling by
-text or by meaning), **ontology construction (FR3)** builds the worldview tree with
-placement states, the **recursive reasoner (FR4)** pressure-tests each node with the
-five questions, **counter-framework research (FR5)** generates the strongest
-objections + competing frameworks, the **round controller (FR11)** drives reason +
-challenge in rounds to a termination condition, and the **coherence metrics
-(FR7/FR9)** score the result structurally — excluding popularity, confidence, and
-institutional acceptance (`milcah ingest` / `extract` / `ontology` / `reason` /
-`challenge` / `rounds` / `metrics`).
+**v0.2 — core engine built.** The philosophy and requirements are set, and the
+main engine path is real: **ingestion (FR1)** normalises an input into a segmented
+framework, **reasoning extraction (FR2)** pulls typed reasoning units out of it
+(with single-, per-segment, and **multi-LLM** modes, the last reconciling by text
+or by meaning), **ontology construction (FR3)** builds the worldview tree with
+placement states, the **recursive reasoner (FR4)** pressure-tests each node with
+the five questions, **counter-framework research (FR5)** generates the strongest
+objections + competing frameworks, **fallacy analysis (FR6)** locates inference
+defects, **coherence metrics (FR7/FR9)** score the result structurally, **FR10
+persistence/history** stores snapshots, and the **round controller (FR11)** drives
+reason + challenge to a termination condition. `milcah orchestrate` ties those
+steps into ADR-001 role-based orchestration, and `milcah.specialist.run_specialist`
+is the provider entrypoint for the Tirzah↔Milcah specialist contract.
 Extraction runs on a deterministic rule-based baseline by default, or — for
 higher-quality typing — on a local LLM executed **through Hoglah**
 (`--extractor hoglah`). See [`docs/philosophy.md`](docs/philosophy.md),
@@ -71,9 +72,16 @@ milcah challenge framework.md --model gemma4:latest --web-search \
 milcah rounds framework.md --model gemma4:latest --max-rounds 3
 #   ^ FR11: drive reason + challenge in rounds, stopping on convergence,
 #     repeated objections, the round threshold, or the node budget
+milcah fallacy framework.md --model gemma4:latest --max-steps 20
+#   ^ FR6: locate fallacies at reasoning steps, judging inference form rather
+#     than institutional acceptance or popularity
+milcah orchestrate framework.md --auto-models
+#   ^ ADR-001: role-based Proposer/Challenger/Fallacy/Synthesis orchestration;
+#     model diversity is provenance and bias reduction, never a confidence score
 milcah metrics framework.md                              # FR7/FR9: coherence metrics
 #   ^ structural explanatory-debt + coherence scores — deliberately excluding
 #     popularity, confidence, institutional acceptance, and model-agreement
+milcah history framework.md                              # FR10: saved snapshot trend
 ```
 
 ## What it does (requirements, in brief)

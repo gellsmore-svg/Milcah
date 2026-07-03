@@ -48,7 +48,7 @@ class SpecialistResult:
         return asdict(self)
 
 
-REQUEST_FIELDS: tuple[str, ...] = ("query", "mode")
+REQUEST_FIELDS: tuple[str, ...] = ("query",)
 RESULT_FIELDS: tuple[str, ...] = (
     "claims",
     "objections",
@@ -67,8 +67,9 @@ def validate_specialist_request(request: Any) -> list[str]:
     errors = [f"missing request field: {f}" for f in REQUEST_FIELDS if f not in data]
     if not data.get("query"):
         errors.append("query must be non-empty")
-    if data.get("mode") not in SPECIALIST_MODES:
-        errors.append(f"invalid mode: {data.get('mode')!r} (allowed: {sorted(SPECIALIST_MODES)})")
+    mode = data.get("mode", "coherence")
+    if mode not in SPECIALIST_MODES:
+        errors.append(f"invalid mode: {mode!r} (allowed: {sorted(SPECIALIST_MODES)})")
     return errors
 
 
@@ -93,6 +94,25 @@ def _text(unit: Any) -> str:
     return getattr(unit, "text", "") or ""
 
 
+def _type_value(unit: Any) -> str:
+    value = getattr(unit, "type", "")
+    return str(getattr(value, "value", value))
+
+
+def _research_citations(units: list[Any]) -> list[str]:
+    citations: list[str] = []
+    seen: set[str] = set()
+    for unit in units:
+        metadata = getattr(unit, "metadata", {}) or {}
+        for source in metadata.get("research_sources") or []:
+            url = source.get("url") if isinstance(source, dict) else getattr(source, "url", "")
+            url = str(url or "").strip()
+            if url and url not in seen:
+                seen.add(url)
+                citations.append(url)
+    return citations
+
+
 def specialist_result_from_orchestration(result: Any) -> SpecialistResult:
     """Adapt Milcah's rich ``OrchestrationResult`` to the flat public contract.
 
@@ -103,14 +123,16 @@ def specialist_result_from_orchestration(result: Any) -> SpecialistResult:
     """
     reasoning = getattr(result, "reasoning", None)
     units = list(getattr(reasoning, "units", []) or [])
-    claims = [_text(u) for u in units if str(getattr(u, "type", "")) == "claim" and _text(u)]
+    claims = [_text(u) for u in units if _type_value(u) == "claim" and _text(u)]
 
     challenge = getattr(result, "challenge", None)
-    objections = [_text(o) for o in getattr(challenge, "objections", []) or [] if _text(o)]
+    objection_units = list(getattr(challenge, "objections", []) or [])
+    objections = [_text(o) for o in objection_units if _text(o)]
     counter = getattr(challenge, "counter_frameworks", []) or []
     evidence = [
         getattr(cf, "title", "") or getattr(cf, "name", "") or _text(cf) or str(cf) for cf in counter
     ]
+    counter_units = [u for cf in counter for u in (getattr(cf, "units", []) or [])]
 
     metrics = getattr(result, "metrics", None)
     coherence = getattr(metrics, "global_coherence", 0.0) if metrics is not None else 0.0
@@ -124,7 +146,7 @@ def specialist_result_from_orchestration(result: Any) -> SpecialistResult:
         claims=claims,
         objections=objections,
         evidence=[e for e in evidence if e],
-        citations=[],
+        citations=_research_citations([*objection_units, *counter_units]),
         confidence=confidence,
         terminal_reason="converged",
         trace_metadata={"trace_steps": len(trace), "roles": dict(getattr(result, "roles", {}) or {})},

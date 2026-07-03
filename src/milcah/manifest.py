@@ -10,7 +10,7 @@ from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
 from keturah import Manifest, capability, manifest
 
-from milcah.contract import RESULT_FIELDS, SPECIALIST_MODES
+from milcah.contract import REQUEST_FIELDS, SPECIALIST_MODES, TERMINAL_REASONS
 
 
 def _version() -> str:
@@ -18,6 +18,54 @@ def _version() -> str:
         return _pkg_version("milcah")
     except PackageNotFoundError:
         return "0.0.0+source"
+
+
+def _coherence_input_schema() -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "description": "the claim/framework to pressure-test"},
+            "mode": {
+                "type": "string",
+                "enum": sorted(SPECIALIST_MODES),
+                "default": "coherence",
+            },
+            "context": {"type": "string", "description": "the framework text to analyse"},
+            "max_iterations": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 3,
+                "description": "upper bound on specialist recursion depth",
+            },
+            "trace_id": {"type": "string", "description": "caller trace identifier"},
+            "session_id": {"type": "string", "description": "caller session identifier"},
+        },
+        "required": list(REQUEST_FIELDS),
+    }
+
+
+def _coherence_output_schema() -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "claims": {"type": "array", "items": {"type": "string"}},
+            "objections": {"type": "array", "items": {"type": "string"}},
+            "evidence": {"type": "array", "items": {"type": "string"}},
+            "citations": {"type": "array", "items": {"type": "string"}},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "terminal_reason": {"type": "string", "enum": sorted(TERMINAL_REASONS)},
+            "trace_metadata": {"type": "object"},
+        },
+        "required": [
+            "claims",
+            "objections",
+            "evidence",
+            "citations",
+            "confidence",
+            "terminal_reason",
+            "trace_metadata",
+        ],
+    }
 
 
 def build_manifest() -> Manifest:
@@ -31,16 +79,8 @@ def build_manifest() -> Manifest:
                 "Pressure-test a claim/framework for internal coherence, or run counter-framework "
                 "research. Returns claims, objections, evidence, citations, a confidence in [0,1], "
                 "and a terminal_reason.",
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "the claim/framework to pressure-test"},
-                        "mode": {"type": "string", "enum": sorted(SPECIALIST_MODES)},
-                        "context": {"type": "string", "description": "the framework text to analyse"},
-                    },
-                    "required": ["query"],
-                },
-                output_schema={"type": "object", "properties": {field: {} for field in RESULT_FIELDS}},
+                input_schema=_coherence_input_schema(),
+                output_schema=_coherence_output_schema(),
                 tags=["specialist", "coherence", "planner"],
             ),
         ],

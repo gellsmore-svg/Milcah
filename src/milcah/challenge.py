@@ -8,8 +8,8 @@ applies the *same* scrutiny to every framework, with no exemptions.
 
 The prompt build + response parse are pure and testable (the LLM seam);
 `challenge_framework` applies an injectable `generate(prompt, model) -> output`;
-`make_hoglah_challenger` runs it through Hoglah. (Web-retrieval-grounded
-counter-research, per the architecture, is a later refinement.)
+`make_hoglah_challenger` runs it through Hoglah. Bounded web research can be
+injected to ground objections with transient, cited external evidence.
 """
 
 from __future__ import annotations
