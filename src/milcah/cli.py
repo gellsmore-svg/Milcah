@@ -401,6 +401,58 @@ def _cmd_history(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_specialist(args: argparse.Namespace) -> int:
+    """Run the public Tirzah <-> Milcah specialist contract from the CLI."""
+    from milcah.contract import SpecialistRequest
+    from milcah.specialist import SpecialistConfig, run_specialist
+
+    context = args.context or ""
+    if args.context_file:
+        context = sys.stdin.read() if args.context_file == "-" else Path(args.context_file).read_text(encoding="utf-8")
+    cfg = SpecialistConfig(
+        orchestration=OrchestrationConfig(
+            default_model=args.model or OrchestrationConfig.default_model,
+            transport=args.transport,
+            db_path=args.hoglah_db or HoglahExtractorConfig.db_path,
+            timeout=args.timeout,
+            max_depth=args.max_depth,
+            max_nodes=args.max_nodes,
+            max_claims=args.max_claims,
+            max_steps=args.max_steps,
+            research=_web_research_client(args),
+        )
+    )
+    result = run_specialist(
+        SpecialistRequest(
+            query=args.query,
+            mode=args.mode,
+            context=context,
+            max_iterations=args.max_iterations,
+            trace_id=args.trace_id,
+            session_id=args.session_id,
+        ),
+        config=cfg,
+    )
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+        return 0
+
+    print(f"terminal_reason: {result.terminal_reason}")
+    print(f"confidence: {result.confidence}")
+    if result.trace_metadata:
+        print(f"trace_metadata: {json.dumps(result.trace_metadata, sort_keys=True)}")
+    for label, values in (
+        ("claims", result.claims),
+        ("objections", result.objections),
+        ("evidence", result.evidence),
+        ("citations", result.citations),
+    ):
+        print(f"{label}: {len(values)}")
+        for value in values:
+            print(f"  - {value}")
+    return 0
+
+
 def _cmd_serve(args: argparse.Namespace) -> int:
     """Serve the read-only snapshot viewer (FR10 trend in the browser)."""
     try:
@@ -561,6 +613,40 @@ def main(argv: list[str] | None = None) -> int:
     p_serve.add_argument("--mongo-db", default="milcah_dev",
                          help="MongoDB database for --store mongo.")
     p_serve.set_defaults(func=_cmd_serve)
+
+    p_specialist = sub.add_parser(
+        "specialist",
+        help="Run the public coherence_check specialist contract (Tirzah <-> Milcah).",
+    )
+    p_specialist.add_argument("query", help="Claim/framework question to pressure-test.")
+    p_specialist.add_argument("--mode", choices=["coherence", "research"], default="coherence")
+    p_specialist.add_argument("--max-iterations", type=int, default=3, help="specialist recursion upper bound.")
+    p_specialist.add_argument("--trace-id", default=None, help="caller trace identifier.")
+    p_specialist.add_argument("--session-id", default=None, help="caller session identifier.")
+    ctx = p_specialist.add_mutually_exclusive_group()
+    ctx.add_argument("--context", default="", help="Framework text to analyse.")
+    ctx.add_argument("--context-file", default=None, help="Framework file to analyse, or '-' for stdin.")
+    p_specialist.add_argument("--json", action="store_true", help="Emit the SpecialistResult contract JSON.")
+    p_specialist.add_argument("--model", default=None, help="Default model for Milcah roles.")
+    p_specialist.add_argument(
+        "--transport",
+        choices=["store", "kafka", "rabbitmq", "redis"],
+        default="store",
+        help="Hoglah submission transport for LLM-backed roles.",
+    )
+    p_specialist.add_argument("--hoglah-db", default=None, help="Hoglah SQLite db (store transport).")
+    p_specialist.add_argument("--timeout", type=float, default=180.0, help="Per-job timeout (s).")
+    p_specialist.add_argument("--max-depth", type=int, default=1, help="proposer recursion depth (FR4/FR11).")
+    p_specialist.add_argument("--max-nodes", type=int, default=12, help="proposer generated-node budget (FR11).")
+    p_specialist.add_argument("--max-claims", type=int, default=8, help="challenger: max claims to contest (FR5).")
+    p_specialist.add_argument("--max-steps", type=int, default=20, help="fallacy: max steps to evaluate (FR6).")
+    p_specialist.add_argument("--web-search", action="store_true", help="ground recursive/challenge prompts with bounded web research")
+    p_specialist.add_argument("--web-search-url", default="http://localhost:8080", help="SearxNG base URL")
+    p_specialist.add_argument("--web-timeout", type=float, default=12.0, help="web request timeout (s)")
+    p_specialist.add_argument("--web-max-results", type=int, default=5, help="maximum search results per derived query")
+    p_specialist.add_argument("--web-max-pages", type=int, default=2, help="maximum result pages fetched per derived query")
+    p_specialist.add_argument("--web-allow-private-search-endpoint", action="store_true", help="allow a private/local SearxNG endpoint; fetched pages remain public-only")
+    p_specialist.set_defaults(func=_cmd_specialist)
 
     args = parser.parse_args(argv)
 

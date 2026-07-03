@@ -78,6 +78,8 @@ milcah fallacy framework.md --model gemma4:latest --max-steps 20
 milcah orchestrate framework.md --auto-models
 #   ^ ADR-001: role-based Proposer/Challenger/Fallacy/Synthesis orchestration;
 #     model diversity is provenance and bias reduction, never a confidence score
+milcah specialist "Is this framework coherent?" --context-file framework.md --json
+#   ^ the public Tirzah↔Milcah coherence_check contract, executable from the CLI
 milcah metrics framework.md                              # FR7/FR9: coherence metrics
 #   ^ structural explanatory-debt + coherence scores — deliberately excluding
 #     popularity, confidence, institutional acceptance, and model-agreement
