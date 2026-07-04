@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from typing import Any
 
 logger = logging.getLogger("milcah")
@@ -43,27 +44,32 @@ class Witness:
         self._enabled = enabled
         self._db = db
         self._db_resolved = db is not None
+        self._db_lock = threading.Lock()
 
     @property
     def enabled(self) -> bool:
         return self._enabled
 
     def _database(self) -> Any:
-        if self._db_resolved:
-            return self._db
-        self._db_resolved = True
-        try:
-            from pymongo import MongoClient
+        # Locked, resolved-flag-last: concurrent first emissions from different
+        # threads must never observe a half-initialised handle (a None here
+        # silently drops events).
+        with self._db_lock:
+            if self._db_resolved:
+                return self._db
+            try:
+                from pymongo import MongoClient
 
-            client = MongoClient(
-                os.environ.get("MILCAH_GALEED_MONGO_URI", "mongodb://localhost:27017"),
-                serverSelectionTimeoutMS=2000,
-            )
-            self._db = client[os.environ.get("MILCAH_GALEED_MONGO_DB", "mnemosyne_dev")]
-        except Exception:
-            logger.debug("galeed trace db unavailable; emitting bus-only", exc_info=True)
-            self._db = None
-        return self._db
+                client = MongoClient(
+                    os.environ.get("MILCAH_GALEED_MONGO_URI", "mongodb://localhost:27017"),
+                    serverSelectionTimeoutMS=2000,
+                )
+                self._db = client[os.environ.get("MILCAH_GALEED_MONGO_DB", "mnemosyne_dev")]
+            except Exception:
+                logger.debug("galeed trace db unavailable; emitting bus-only", exc_info=True)
+                self._db = None
+            self._db_resolved = True
+            return self._db
 
     def emit(
         self,
