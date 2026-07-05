@@ -105,10 +105,19 @@ def run_rounds(
 
 def make_hoglah_round_steps(
     config: HoglahExtractorConfig, research: WebResearchClient | None = None,
+    *, reason_model: str | None = None, challenge_model: str | None = None,
 ) -> tuple[ReasonStep, ChallengeStep]:
-    """The real per-round steps, run through Hoglah."""
-    reasoner = make_hoglah_reasoner(config, research=research)
-    challenger = make_hoglah_challenger(config)
+    """The real per-round steps, run through Hoglah.
+
+    ADR-001 bias reduction applies to rounds too: pass distinct
+    ``reason_model`` / ``challenge_model`` to run the two roles on different
+    model families (both default to ``config.model``)."""
+    from dataclasses import replace as _replace
+
+    reason_cfg = _replace(config, model=reason_model) if reason_model else config
+    challenge_cfg = _replace(config, model=challenge_model) if challenge_model else config
+    reasoner = make_hoglah_reasoner(reason_cfg, research=research)
+    challenger = make_hoglah_challenger(challenge_cfg)
 
     def reason(ontology: WorldviewOntology, budget: int) -> ReasoningResult:
         return recurse_reasoning(ontology, expand=reasoner, max_depth=1, max_new_nodes=budget)

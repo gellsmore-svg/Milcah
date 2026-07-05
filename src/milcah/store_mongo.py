@@ -24,8 +24,24 @@ class MongoStore:
     """A `Store` over a MongoDB collection. Construct with `make_mongo_store` (real)
     or pass any collection-like object (tests). Idempotent on `snapshot_id`."""
 
-    def __init__(self, collection: Any) -> None:
+    def __init__(self, collection: Any, client: Any = None) -> None:
         self._col = collection
+        self._client = client
+
+    def close(self) -> None:
+        """Release the MongoClient (no-op for injected collection-likes)."""
+        if self._client is not None:
+            try:
+                self._client.close()
+            except Exception:
+                pass
+            self._client = None
+
+    def __enter__(self) -> "MongoStore":
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self.close()
 
     def save(self, snapshot: Snapshot) -> str:
         doc = snapshot.to_jsonable()
@@ -67,4 +83,4 @@ def make_mongo_store(
     from pymongo import MongoClient
 
     client = MongoClient(uri)
-    return MongoStore(client[database][collection])
+    return MongoStore(client[database][collection], client=client)

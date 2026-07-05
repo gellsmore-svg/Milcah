@@ -45,7 +45,7 @@ Track:
 
 * resolved
 * unresolved
-* orphaned
+* orphaned *(not yet implemented — PlacementState has no orphaned member; tracked as a v0.3 gap)*
 * contradictory nodes
 
 ---
@@ -161,7 +161,7 @@ End rounds when:
 * convergence reached
 * recursion threshold met
 * repeated objection patterns
-* human review requested
+* human review requested *(not yet implemented as a round terminal; operator review happens via the snapshot viewer today)*
 * compute budget exhausted
 
 Long-running analysis supported.

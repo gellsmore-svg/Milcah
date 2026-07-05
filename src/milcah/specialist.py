@@ -31,10 +31,18 @@ AdaptFn = Callable[[Any], SpecialistResult]
 
 @dataclass
 class SpecialistConfig:
-    """Runtime options for a provider-side specialist call."""
+    """Runtime options for a provider-side specialist call.
+
+    ``extractor="hoglah"`` uses the LLM quality path for unit extraction
+    (FR2) instead of the deterministic rule baseline. ``research`` supplies a
+    WebResearchClient used only for mode="research" requests — without one,
+    research mode runs the same pipeline as coherence (documented behaviour).
+    """
 
     orchestration: OrchestrationConfig = field(default_factory=OrchestrationConfig)
     source_type: SourceType = SourceType.DOCUMENT
+    extractor: str = "rule"  # "rule" | "hoglah"
+    research: Any = None  # WebResearchClient for mode="research"
 
 
 def coerce_specialist_request(request: Any) -> SpecialistRequest | None:
@@ -80,11 +88,22 @@ def run_specialist(
 
     try:
         framework = _framework_from_request(req, source_type=cfg.source_type)
-        units = extract_units(framework) if extract_units else extract(framework, RuleBasedExtractor())
+        if extract_units:
+            units = extract_units(framework)
+        elif cfg.extractor == "hoglah":
+            from milcah.hoglah_extractor import HoglahExtractor
+            from milcah.orchestration import Role
+
+            units = extract(framework, HoglahExtractor(cfg.orchestration.hoglah_config(Role.PROPOSER)))
+        else:
+            units = extract(framework, RuleBasedExtractor())
+        run_config = _bounded_config(cfg.orchestration, req)
+        if req.mode == "research" and cfg.research is not None:
+            run_config = replace(run_config, research=cfg.research)
         orchestration = (
             orchestrator(framework, units)
             if orchestrator
-            else orchestrate(framework, units, config=_bounded_config(cfg.orchestration, req))
+            else orchestrate(framework, units, config=run_config)
         )
     except Exception as exc:  # provider boundary: callers get a terminal reason
         return _blocked([type(exc).__name__], request=req)

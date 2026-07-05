@@ -1,7 +1,7 @@
-# Architecture (initial / proposed) — Milcah v0.2
+# Architecture — Milcah v0.2 (built)
 
 This is a first architecture sketch derived from [`philosophy.md`](philosophy.md)
-and [`requirements.md`](requirements.md). It is **proposed**, not built — a frame
+and [`requirements.md`](requirements.md). The v0.2 core described here is **built** (ingest, extract, ontology, reason, challenge, fallacy, rounds, orchestrate, metrics, persistence, serve); remaining gaps are called out inline. Originally a frame
 for the engine to grow into. Decisions will be recorded (append-only) in
 `architecture-decisions.md` as they firm up.
 

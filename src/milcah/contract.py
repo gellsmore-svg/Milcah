@@ -122,8 +122,15 @@ def specialist_result_from_orchestration(result: Any) -> SpecialistResult:
     coherence; provenance/trace summarised into trace_metadata.
     """
     reasoning = getattr(result, "reasoning", None)
-    units = list(getattr(reasoning, "units", []) or [])
-    claims = [_text(u) for u in units if _type_value(u) == "claim" and _text(u)]
+    # ReasoningResult carries the expanded ONTOLOGY (recursive.py), not a flat
+    # units list — claims are its claim-typed nodes. Fall back to result.ontology
+    # (same object post-orchestration) and, for duck-typed test doubles, to a
+    # legacy `units` attribute.
+    ontology = getattr(reasoning, "ontology", None) or getattr(result, "ontology", None)
+    nodes = list(getattr(ontology, "nodes", {}).values()) if ontology is not None else []
+    if not nodes:
+        nodes = list(getattr(reasoning, "units", []) or [])
+    claims = [_text(n) for n in nodes if _type_value(n) == "claim" and _text(n)]
 
     challenge = getattr(result, "challenge", None)
     objection_units = list(getattr(challenge, "objections", []) or [])
@@ -148,9 +155,21 @@ def specialist_result_from_orchestration(result: Any) -> SpecialistResult:
         evidence=[e for e in evidence if e],
         citations=_research_citations([*objection_units, *counter_units]),
         confidence=confidence,
-        terminal_reason="converged",
+        terminal_reason=_terminal_reason_for(reasoning, claims, objections),
         trace_metadata={"trace_steps": len(trace), "roles": dict(getattr(result, "roles", {}) or {})},
     )
+
+
+def _terminal_reason_for(reasoning: Any, claims: list[str], objections: list[str]) -> str:
+    """Map the run's actual outcome onto the contract's TERMINAL_REASONS."""
+    stop = str(getattr(reasoning, "stop_reason", "") or "")
+    if stop in ("node_budget", "max_depth", "max_rounds"):
+        return "max_iterations"
+    if not claims:
+        return "insufficient_evidence"
+    if not objections:
+        return "no_objections"
+    return "converged"
 
 
 CANONICAL_REQUEST: dict[str, Any] = {

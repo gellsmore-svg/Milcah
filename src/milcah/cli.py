@@ -303,6 +303,8 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
             global_coherence=snap.metrics.get("global_coherence"),
         )
         print(f"saved snapshot {snap_id} for framework {framework.id} -> {where}")
+        if hasattr(store, "close"):
+            store.close()
     if args.json:
         print(json.dumps({"framework": to_jsonable(framework), "metrics": metrics_to_jsonable(metrics)}, indent=2))
     else:
@@ -386,6 +388,8 @@ def _cmd_history(args: argparse.Namespace) -> int:
     framework = _read_source(args.source, args.source_type, args.title)
     store, where = _open_store(args)
     snaps = store.history(framework.id)
+    if hasattr(store, "close"):
+        store.close()
     trend = compute_trend(snaps)
     if args.json:
         print(json.dumps({"framework_id": framework.id, "trend": trend}, indent=2))

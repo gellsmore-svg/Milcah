@@ -155,8 +155,18 @@ class JsonFileStore:
         d = self._dir(framework_id)
         if not d.exists():
             return []
-        snaps = [Snapshot.from_jsonable(json.loads(p.read_text(encoding="utf-8")))
-                 for p in d.glob("*.json")]
+        snaps = []
+        for path in d.glob("*.json"):
+            try:
+                snaps.append(Snapshot.from_jsonable(json.loads(path.read_text(encoding="utf-8"))))
+            except Exception:
+                # One corrupt file must not erase the whole trend (FR10);
+                # skip it loudly enough to be found.
+                import logging
+
+                logging.getLogger("milcah").warning(
+                    "skipping corrupt snapshot file: %s", path
+                )
         return sorted(snaps, key=lambda s: s.created_at)
 
     def load(self, framework_id: str, snapshot_id: str) -> Snapshot | None:
