@@ -44,3 +44,5 @@ optional later seam.
 - **[Persistence](persistence.md)** (`persistence.py`) — timestamped snapshots +
   coherence trend over time; dependency-free JSON store (FR10).
 - **[CLI](cli.md)** (`cli.py`) — `milcah ingest` / `milcah extract`.
+- **[web](web.md)** — the read-only FR10 snapshot viewer (`milcah serve`).
+- **[tracing](tracing.md)** — the Galeed spine witness (orchestration runs, snapshot saves).

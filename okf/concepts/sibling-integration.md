@@ -25,3 +25,12 @@ The first concrete integration is live: the
 where Milcah's **multi-LLM** core (several models reasoning + reconciling) becomes
 real — the "multi-LLM orchestration over Hoglah" open ADR. Persistence via Tirzah
 and ontology via Mahalath are designed but not yet wired.
+
+## Specialist seam (Tirzah → Milcah)
+
+Tirzah's planner can delegate a coherence check to Milcah as a **specialist**:
+`run_planned_specialist` adapts an orchestration run into the shared
+`SpecialistResult` contract (provider-side `milcah.contract`), and Tirzah's
+plan interpreter calls it as a gated tool. Disagreement raises fractures;
+agreement is never scored (ADR-001).
+
