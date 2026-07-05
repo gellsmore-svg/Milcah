@@ -140,3 +140,15 @@ concept graph.
 ## License
 
 [Apache License 2.0](LICENSE).
+
+## Snapshot viewer & tracing
+
+- `milcah serve` (needs `pip install milcah[web]`, default `127.0.0.1:8791`) —
+  a read-only browser over saved snapshots: the framework index, each
+  framework's coherence **trend over time** as SVG sparklines (green =
+  improving, red = degrading), and full snapshot detail. Same store flags as
+  `history` (`--store json|mongo`).
+- **Family trace spine**: set `MILCAH_GALEED_ENABLED=1` (with the `galeed`
+  extra) and orchestration runs + snapshot saves emit onto the shared Galeed
+  stream, viewable in Mizpah or `galeed trace`.
+
