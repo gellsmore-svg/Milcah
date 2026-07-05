@@ -25,9 +25,12 @@ description of Milcah's concepts and (built) modules.
 **v0.2 — first component built.** The philosophy and requirements are set; the
 first stage of the engine is real: [ingestion](modules/ingestion.md) (FR1) and
 [reasoning extraction](modules/extraction.md) (FR2), with an
-[LLM extractor over Hoglah](modules/hoglah-extractor.md). The recursive reasoner,
-ontology construction, counter-framework research, and scoring (FR3–FR11) are
-designed but not yet built.
+[LLM extractor over Hoglah](modules/hoglah-extractor.md). The full v0.2 core is
+built: ontology construction (FR3, with optional LLM or Mahalath-debated
+placement), recursive pressure-testing (FR4), counter-framework challenge (FR5),
+fallacy analysis (FR6), coherence rounds (FR11), metrics (FR7/FR9), persistence
+with trend history (FR10, JSON or the shared family Mongo), role-based
+multi-LLM orchestration over Hoglah, and the snapshot viewer (`milcah serve`).
 
 ## Map
 - **Snapshot viewer & tracing** — `milcah serve` (FR10 trend in the browser:

@@ -28,4 +28,4 @@ declare a winner. Given a framework, it:
 Two invariants make it trustworthy: **[burden symmetry](burden-symmetry.md)** (no
 framework is protected) and **preserved uncertainty** (unresolved, equivalent-
 burden, insufficient-information, and indistinguishable are valid terminal states —
-never collapsed). Steps 2–4 are designed but not yet built; steps 1–2 exist today.
+never collapsed). The whole loop is built (v0.2): extract → ontology → reason → challenge → analyse → score → persist, with rounds to convergence.

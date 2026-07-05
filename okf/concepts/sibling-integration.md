@@ -22,9 +22,12 @@ rather than reimplementing memory, ontology, or execution:
 The first concrete integration is live: the
 [LLM extractor over Hoglah](../modules/hoglah-extractor.md) routes
 [extraction](../modules/extraction.md) through Hoglah → Ollama, and is the seam
-where Milcah's **multi-LLM** core (several models reasoning + reconciling) becomes
-real — the "multi-LLM orchestration over Hoglah" open ADR. Persistence via Tirzah
-and ontology via Mahalath are designed but not yet wired.
+where Milcah's **multi-LLM** core is real: role-based orchestration over Hoglah
+(`orchestrate`, distinct models per role via `--auto-models`) and multi-model
+extraction with text/semantic reconciliation. Ontology via Mahalath is wired
+(`--placement mahalath` delegates placement to its debated ontology; polysemy
+and staleness surface as fractures), and persistence lives in the shared family
+MongoDB (`--store mongo`) alongside a JSON file store.
 
 ## Specialist seam (Tirzah → Milcah)
 

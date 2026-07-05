@@ -26,6 +26,8 @@ with a trend over time (FR10).
 
 This is where **multi-LLM** analysis and counter-framework research (FR5) live —
 several models pressure-test and reconcile, all under
-[burden symmetry](burden-symmetry.md). The reasoner is designed but **not yet
-built**; the [extraction](../modules/extraction.md) that feeds it (and its
-[Hoglah execution path](../modules/hoglah-extractor.md)) exists today.
+[burden symmetry](burden-symmetry.md). The reasoner is **built**
+(`recurse_reasoning`, bounded by depth/node budgets, with coherence
+[rounds](../modules/rounds.md) driving reason + challenge to convergence),
+fed by [extraction](../modules/extraction.md) and its
+[Hoglah execution path](../modules/hoglah-extractor.md).
