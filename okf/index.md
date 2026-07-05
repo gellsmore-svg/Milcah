@@ -30,6 +30,9 @@ ontology construction, counter-framework research, and scoring (FR3–FR11) are
 designed but not yet built.
 
 ## Map
+- **Snapshot viewer & tracing** — `milcah serve` (FR10 trend in the browser:
+  sparklines, snapshot detail) and Galeed spine emission for orchestration runs
+  and snapshot saves (`MILCAH_GALEED_ENABLED=1`).
 
 - **[Concepts](concepts/index.md)** — the engine's purpose and invariants: the
   coherence engine, typed reasoning units, burden symmetry, recursive
