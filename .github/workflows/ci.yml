@@ -12,5 +12,5 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "${{ matrix.python }}" }
       - run: pip install -e ".[dev]" "galeed @ git+https://github.com/gellsmore-svg/galeed" "keturah @ git+https://github.com/gellsmore-svg/keturah" fastapi httpx ruff
-      - run: ruff check src tests || true
+      - run: ruff check src tests
       - run: pytest -q

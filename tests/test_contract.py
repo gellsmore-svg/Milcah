@@ -68,6 +68,26 @@ def test_adapter_is_robust_to_a_minimal_result():
     assert result.confidence == 0.0
 
 
+def test_adapter_maps_reasoning_ontology_nodes():
+    from milcah.models import ReasoningUnitType as RT
+    from milcah.ontology import OntologyNode, WorldviewOntology
+
+    ontology = WorldviewOntology(framework_id="fw")
+    node = OntologyNode(
+        id="n1", unit_id="n1", type=RT.CLAIM, text="Expanded claim from proposer"
+    )
+    ontology.nodes[node.id] = node
+    fake = SimpleNamespace(
+        reasoning=SimpleNamespace(ontology=ontology, generated=1, stop_reason="max_depth"),
+        challenge=SimpleNamespace(objections=[], counter_frameworks=[]),
+        metrics=SimpleNamespace(global_coherence=0.55),
+        roles={},
+        trace=[],
+    )
+    result = specialist_result_from_orchestration(fake)
+    assert result.claims == ["Expanded claim from proposer"]
+
+
 def test_adapter_maps_real_reasoning_unit_enums():
     unit = ReasoningUnit.make(framework_id="fw", unit_type=RT.CLAIM, text="X holds")
     result = specialist_result_from_orchestration(

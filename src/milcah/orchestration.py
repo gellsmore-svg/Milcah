@@ -153,7 +153,7 @@ def orchestrate(
     # Challenger (FR5) — the adversary, under burden symmetry.
     challenger_model = config.model_for(Role.CHALLENGER)
     challenge_result = challenge_framework(
-        framework, units, generate=challenge or _default_challenge(config),
+        framework, list(ontology.nodes.values()), generate=challenge or _default_challenge(config),
         model=challenger_model, max_claims=config.max_claims, research=config.research,
     )
     roles[Role.CHALLENGER.value] = challenger_model

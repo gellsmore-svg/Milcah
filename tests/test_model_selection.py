@@ -26,7 +26,9 @@ def test_model_lister_is_submitter_only(monkeypatch):
         def close(self):
             pass
 
-    import types, sys
+    import sys
+    import types
+
     monkeypatch.setitem(sys.modules, "hoglah", types.SimpleNamespace(Hoglah=FakeHoglah))
     assert make_hoglah_model_lister()() == ["m1"]
     assert created == [{"use_real": True, "config": None, "start_worker": False}]

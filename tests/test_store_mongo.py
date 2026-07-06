@@ -34,7 +34,9 @@ def test_save_history_load_roundtrip():
     a = _snap("f1", "2026-06-23T10:00:00Z", 0.5)
     b = _snap("f1", "2026-06-23T12:00:00Z", 0.8)
     other = _snap("f2", "2026-06-23T11:00:00Z")
-    ida = store.save(a); store.save(b); store.save(other)
+    ida = store.save(a)
+    store.save(b)
+    store.save(other)
 
     hist = store.history("f1")
     assert [s.created_at for s in hist] == ["2026-06-23T10:00:00Z", "2026-06-23T12:00:00Z"]
@@ -47,7 +49,8 @@ def test_save_is_idempotent_on_snapshot_id():
     col = _FakeCollection()
     store = MongoStore(col)
     s = _snap("f1", "2026-06-23T10:00:00Z")
-    store.save(s); store.save(s)  # same id (framework_id + created_at)
+    store.save(s)
+    store.save(s)  # same id (framework_id + created_at)
     assert len(col.docs) == 1
     assert len(store.history("f1")) == 1
 
