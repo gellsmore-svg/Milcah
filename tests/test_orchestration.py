@@ -21,11 +21,19 @@ def _framework_and_units():
 
 
 def test_config_assigns_distinct_models_per_role():
-    cfg = OrchestrationConfig(default_model="base", models={"proposer": "m_a", "challenger": "m_b"})
+    cfg = OrchestrationConfig(
+        default_model="base",
+        models={"proposer": "m_a", "challenger": "m_b"},
+        db_path="/tmp/hoglah.db",
+        output_dir="/tmp/hoglah-out",
+    )
     assert cfg.model_for(Role.PROPOSER) == "m_a"
     assert cfg.model_for(Role.CHALLENGER) == "m_b"
     assert cfg.model_for(Role.FALLACY) == "base"  # falls back to default
-    assert cfg.hoglah_config(Role.PROPOSER).model == "m_a"
+    proposer = cfg.hoglah_config(Role.PROPOSER)
+    assert proposer.model == "m_a"
+    assert proposer.db_path == "/tmp/hoglah.db"
+    assert proposer.output_dir == "/tmp/hoglah-out"
 
 
 def test_orchestrate_runs_all_roles_with_provenance():

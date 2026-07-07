@@ -55,6 +55,7 @@ class OrchestrationConfig:
     models: dict[str, str] = field(default_factory=dict)
     transport: str = "store"
     db_path: str = HoglahExtractorConfig.db_path
+    output_dir: str = HoglahExtractorConfig.output_dir
     timeout: float = 180.0
     max_depth: int = 1
     max_nodes: int = 12
@@ -68,7 +69,7 @@ class OrchestrationConfig:
     def hoglah_config(self, role: Role) -> HoglahExtractorConfig:
         return HoglahExtractorConfig(
             model=self.model_for(role), transport=self.transport,
-            db_path=self.db_path, timeout=self.timeout,
+            db_path=self.db_path, output_dir=self.output_dir, timeout=self.timeout,
         )
 
 
