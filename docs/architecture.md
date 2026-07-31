@@ -20,7 +20,7 @@ it improves the honesty and completeness of inquiry.
 | **Tirzah** | graph memory + retrieval | persisting/retrieving reasoning units, ontology nodes, prior rounds (FR3, FR4, FR10) |
 | **Mahalath** | ontology builder | constructing/validating worldview trees, placement, polysemy (FR3) |
 | **Hoglah** | local-first job queue | running the many LLM calls durably and serially / at controlled concurrency (FR4, FR5) |
-| **Cairn** | process meta-language | describing Milcah's own recursive process (`process.cairn.md`) |
+| **Deborah** | process meta-language | describing Milcah's own recursive process (`process.cairn.md`) |
 | **Milcah** | recursive pressure-testing | the orchestration + scoring + burden symmetry on top |
 
 The principle: Milcah is the *orchestrator and judge of coherence*; it leans on the

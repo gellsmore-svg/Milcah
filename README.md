@@ -32,7 +32,7 @@ higher-quality typing — on a local LLM executed **through Hoglah**
 (`--extractor hoglah`). See [`docs/philosophy.md`](docs/philosophy.md),
 [`docs/requirements.md`](docs/requirements.md), and the initial
 [`docs/architecture.md`](docs/architecture.md). Milcah's own process is described
-in Cairn in [`docs/process.cairn.md`](docs/process.cairn.md).
+in the Cairn format in [`docs/process.cairn.md`](docs/process.cairn.md).
 
 ```bash
 milcah extract framework.md                              # deterministic baseline
@@ -113,7 +113,7 @@ rather than reimplementing them:
 | [Tirzah](https://github.com/gellsmore-svg/tirzah) | graph memory + retrieval |
 | [Mahalath](https://github.com/gellsmore-svg/mahalath) | ontology construction |
 | [Hoglah](https://github.com/gellsmore-svg/hoglah) | local-first execution queue |
-| [Cairn](https://github.com/gellsmore-svg/Cairn) | the process meta-language used to describe it |
+| [Deborah](https://github.com/gellsmore-svg/Deborah) | the process meta-language used to describe it |
 
 ## Develop
 

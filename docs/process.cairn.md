@@ -1,9 +1,11 @@
-# Milcah's core process, in Cairn
+# Milcah's core process, in the Cairn format
 
-The recursive coherence-pressure-test round, described in
-[Cairn](https://github.com/gellsmore-svg/Cairn) (the family's process
-meta-language). This both documents the engine and exercises Cairn on a
-recursive, multi-LLM, human-in-the-loop process.
+The recursive coherence-pressure-test round, described in the Cairn document
+format defined by [Deborah](https://github.com/gellsmore-svg/Deborah) (the
+family's process meta-language — the `cairn` package split into `deborah` and
+`huldah` at v0.9.0; the *format* kept its name). This both documents the engine
+and exercises the language on a recursive, multi-LLM, human-in-the-loop
+process.
 
 ## CONTEXT
 
