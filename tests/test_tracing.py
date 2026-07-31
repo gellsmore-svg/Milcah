@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import sys
+import types
+
 import pytest
 
 pytest.importorskip("galeed", reason="galeed extra not installed")
@@ -94,3 +97,55 @@ def test_witness_never_raises_on_broken_db() -> None:
 
     witness = Witness(enabled=True, db=ExplodingDb())
     witness.emit(SNAPSHOT_SAVED, trace_id="s1", summary="resilient")  # must not raise
+
+
+def test_close_shuts_the_client_it_opened(monkeypatch) -> None:
+    """The lazy MongoClient must be closable rather than leaked (#17)."""
+    closed: list[bool] = []
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __getitem__(self, name):
+            return FakeDb()
+
+        def close(self) -> None:
+            closed.append(True)
+
+    fake_pymongo = types.ModuleType("pymongo")
+    fake_pymongo.MongoClient = FakeClient  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "pymongo", fake_pymongo)
+
+    witness = Witness(enabled=True)
+    assert witness._database() is not None  # resolves and opens the client
+    witness.close()
+    assert closed == [True]
+
+    witness.close()  # idempotent — nothing left to close
+    assert closed == [True]
+
+
+def test_close_does_not_touch_an_injected_db() -> None:
+    """An injected db belongs to the caller; close() must leave it usable."""
+    fake = FakeDb()
+    witness = Witness(enabled=True, db=fake)
+
+    witness.close()
+
+    witness.emit(SNAPSHOT_SAVED, trace_id="s1", summary="still writing")
+    assert [row["type"] for row in _events(fake)] == [SNAPSHOT_SAVED]
+
+
+def test_set_witness_closes_the_one_it_replaces(monkeypatch) -> None:
+    closed: list[str] = []
+
+    class Recording(Witness):
+        def close(self) -> None:
+            closed.append("closed")
+            super().close()
+
+    first = Recording(enabled=False)
+    set_witness(first)
+    set_witness(None)
+    assert closed == ["closed"]

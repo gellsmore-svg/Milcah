@@ -21,6 +21,7 @@ never affect an analysis.
 
 from __future__ import annotations
 
+import atexit
 import logging
 import os
 import threading
@@ -45,6 +46,10 @@ class Witness:
         self._db = db
         self._db_resolved = db is not None
         self._db_lock = threading.Lock()
+        # Only set when this witness opened the connection itself — an injected
+        # db belongs to the caller and must never be closed from here.
+        self._client: Any = None
+        self._atexit_registered = False
 
     @property
     def enabled(self) -> bool:
@@ -64,12 +69,36 @@ class Witness:
                     os.environ.get("MILCAH_GALEED_MONGO_URI", "mongodb://localhost:27017"),
                     serverSelectionTimeoutMS=2000,
                 )
+                self._client = client
                 self._db = client[os.environ.get("MILCAH_GALEED_MONGO_DB", "mnemosyne_dev")]
+                if not self._atexit_registered:
+                    # Tracing is lazy and process-wide, so nothing else is
+                    # guaranteed to close this. atexit runs while the
+                    # interpreter is still healthy, giving an orderly close.
+                    atexit.register(self.close)
+                    self._atexit_registered = True
             except Exception:
                 logger.debug("galeed trace db unavailable; emitting bus-only", exc_info=True)
                 self._db = None
             self._db_resolved = True
             return self._db
+
+    def close(self) -> None:
+        """Close the MongoClient this witness opened; no-op for an injected db.
+
+        Safe to call repeatedly and from atexit. A later emit simply re-resolves
+        a fresh connection, so closing early is never fatal to tracing.
+        """
+        with self._db_lock:
+            client, self._client = self._client, None
+            if client is not None:
+                self._db = None
+                self._db_resolved = False
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                logger.debug("closing galeed trace client failed (ignored)", exc_info=True)
 
     def emit(
         self,
@@ -116,4 +145,6 @@ def get_witness() -> Witness:
 def set_witness(witness: Witness | None) -> None:
     """Override (or reset with None) the process-wide witness — for tests."""
     global _witness
-    _witness = witness
+    previous, _witness = _witness, witness
+    if previous is not None and previous is not witness:
+        previous.close()  # only closes a connection it opened itself

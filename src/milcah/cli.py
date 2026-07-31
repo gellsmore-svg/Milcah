@@ -13,6 +13,7 @@ import json
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 from milcah import __version__
 from milcah.extraction import RuleBasedExtractor, extract
@@ -291,20 +292,21 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
 
         snap = build_snapshot(framework, units, ontology, metrics)
         store, where = _open_store(args)
-        snap_id = store.save(snap)
-        from milcah.tracing import SNAPSHOT_SAVED, get_witness
+        try:
+            snap_id = store.save(snap)
+            from milcah.tracing import SNAPSHOT_SAVED, get_witness
 
-        get_witness().emit(
-            SNAPSHOT_SAVED,
-            trace_id=snap_id,
-            summary=f"saved coherence snapshot for '{framework.title}'",
-            framework_id=framework.id,
-            snapshot_id=snap_id,
-            global_coherence=snap.metrics.get("global_coherence"),
-        )
-        print(f"saved snapshot {snap_id} for framework {framework.id} -> {where}")
-        if hasattr(store, "close"):
-            store.close()
+            get_witness().emit(
+                SNAPSHOT_SAVED,
+                trace_id=snap_id,
+                summary=f"saved coherence snapshot for '{framework.title}'",
+                framework_id=framework.id,
+                snapshot_id=snap_id,
+                global_coherence=snap.metrics.get("global_coherence"),
+            )
+            print(f"saved snapshot {snap_id} for framework {framework.id} -> {where}")
+        finally:
+            _close_store(store)
     if args.json:
         print(json.dumps({"framework": to_jsonable(framework), "metrics": metrics_to_jsonable(metrics)}, indent=2))
     else:
@@ -318,6 +320,12 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
             print(f"    {k}: {m[k]}")
         print("  (excludes popularity / confidence / institutional acceptance / model-agreement)")
     return 0
+
+
+def _close_store(store: Any) -> None:
+    """Close a store if it holds a connection (MongoStore does; JsonFileStore doesn't)."""
+    if hasattr(store, "close"):
+        store.close()
 
 
 def _open_store(args: argparse.Namespace):
@@ -387,9 +395,10 @@ def _cmd_history(args: argparse.Namespace) -> int:
 
     framework = _read_source(args.source, args.source_type, args.title)
     store, where = _open_store(args)
-    snaps = store.history(framework.id)
-    if hasattr(store, "close"):
-        store.close()
+    try:
+        snaps = store.history(framework.id)
+    finally:
+        _close_store(store)
     trend = compute_trend(snaps)
     if args.json:
         print(json.dumps({"framework_id": framework.id, "trend": trend}, indent=2))
@@ -469,8 +478,13 @@ def _cmd_serve(args: argparse.Namespace) -> int:
         return 1
     store, where = _open_store(args)
     print(f"Milcah snapshot viewer on http://{args.host}:{args.port} — store: {where}")
-    uvicorn.run(create_app(store, store_label=str(where)),
-                host=args.host, port=args.port, log_level="warning")
+    try:
+        uvicorn.run(create_app(store, store_label=str(where)),
+                    host=args.host, port=args.port, log_level="warning")
+    finally:
+        # uvicorn.run blocks until shutdown; the CLI opened this store, so the
+        # CLI closes it — including on Ctrl-C, which is how serve usually ends.
+        _close_store(store)
     return 0
 
 
