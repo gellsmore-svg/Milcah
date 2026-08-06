@@ -7,45 +7,26 @@ result Milcah returns. Keeping this here (and tested against Milcah's own
 seam is guaranteed at the source — if Milcah's rich result shape changes, this
 adapter and its test are the single place that has to stay honest.
 
-Pure-stdlib + duck-typed so it imposes no import cost and no coupling.
+Duck-typed so it imposes no runtime coupling on Milcah's internals; the
+shapes themselves come from Keturah, which Milcah already depends on.
 """
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
 from typing import Any
 
-SPECIALIST_MODES = frozenset({"coherence", "research"})
-TERMINAL_REASONS = frozenset(
-    {"converged", "max_iterations", "no_objections", "insufficient_evidence", "blocked"}
+# The request/result shapes live in Keturah. They used to be written out here
+# *and* in tirzah.coherence, and the two copies had already drifted — only the
+# consumer side carried error/error_type, so a provider result could not
+# represent its own failure. Re-exported so this module's callers are unaffected.
+from keturah import (  # noqa: F401 — re-exported as this module's public API
+    SPECIALIST_MODES,
+    TERMINAL_REASONS,
+    Evidence,
+    SpecialistRequest,
+    SpecialistResult,
+    normalise_evidence,
 )
-
-
-@dataclass
-class SpecialistRequest:
-    query: str
-    mode: str = "coherence"
-    context: str = ""
-    max_iterations: int = 3
-    trace_id: str | None = None
-    session_id: str | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass
-class SpecialistResult:
-    claims: list[str] = field(default_factory=list)
-    objections: list[str] = field(default_factory=list)
-    evidence: list[str] = field(default_factory=list)
-    citations: list[str] = field(default_factory=list)
-    confidence: float = 0.0
-    terminal_reason: str = "converged"
-    trace_metadata: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
 
 
 REQUEST_FIELDS: tuple[str, ...] = ("query",)
