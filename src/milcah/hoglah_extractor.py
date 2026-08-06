@@ -19,6 +19,7 @@ callable, so `HoglahExtractor` is unit-testable without a daemon or broker.
 
 from __future__ import annotations
 
+import pathlib
 from dataclasses import dataclass
 from typing import Callable
 
@@ -35,15 +36,40 @@ class HoglahExtractionError(RuntimeError):
     """A Hoglah-executed extraction job failed or returned no usable output."""
 
 
+def _hoglah_default(attr: str, fallback: str) -> str:
+    """Hoglah's own default for a path setting, so the two cannot disagree.
+
+    Falls back to the documented location when Hoglah's config cannot be read,
+    which keeps this import-safe for callers that never touch the queue.
+    """
+    try:
+        from hoglah.config import HoglahConfig
+
+        value = getattr(HoglahConfig(), attr, None)
+        if value:
+            return str(value)
+    except Exception:  # noqa: BLE001 - a config probe must not break extraction
+        pass
+    return str(pathlib.Path(fallback).expanduser())
+
+
+_DEFAULT_DB_PATH = _hoglah_default("db_path", "~/.hoglah/hoglah.db")
+_DEFAULT_OUTPUT_DIR = _hoglah_default("output_dir", "~/.hoglah/outbox")
+
+
 @dataclass
 class HoglahExtractorConfig:
     model: str = DEFAULT_MODEL
     embedding_model: str = "bge-m3:latest"  # Ollama embedding model (semantic reconciliation)
     timeout: float = 180.0
     transport: str = "store"  # store | kafka | rabbitmq | redis
-    # store transport
-    db_path: str = "data/hoglah/jobs.sqlite3"
-    output_dir: str = "data/hoglah/outbox"
+    # Store transport. These default to Hoglah's *own* queue location rather
+    # than a path relative to the current working directory: Milcah submits
+    # with start_worker=False, so an external worker must be draining the same
+    # database. A cwd-relative default silently created a private queue that
+    # nothing was watching, and every call hung until its timeout.
+    db_path: str = _DEFAULT_DB_PATH
+    output_dir: str = _DEFAULT_OUTPUT_DIR
     # messaging transports
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_input_topic: str = "hoglah-jobs"
