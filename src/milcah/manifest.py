@@ -120,5 +120,58 @@ def build_manifest() -> Manifest:
                 tags=["specialist", "coherence", "critique", "evaluate", "planner"],
                 **stage0,
             ),
+            _capability(
+                "validate_against_intent",
+                "Score whether a provisional reading / critique aligns with declared "
+                "intent and outcomes (intent_alignment criterion). May re-run critique "
+                "when no prior evaluate artifact exists.",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "intent": {"type": "string"},
+                        "outcomes": {"type": "array", "items": {"type": "string"}},
+                        "query": {"type": "string"},
+                        "context": {"type": "string"},
+                    },
+                },
+                output_schema={
+                    "type": "object",
+                    "properties": {
+                        "criteria": {"type": "array", "items": {"type": "string"}},
+                        "scores": {"type": "object"},
+                        "objections": {"type": "array", "items": {"type": "string"}},
+                        "intent": {"type": "string"},
+                    },
+                },
+                tags=["specialist", "evaluate", "intent", "planner"],
+                **stage0,
+            ),
+            _capability(
+                "assess_confidence",
+                "Aggregate confidence bands from prior observe/infer/evaluate step "
+                "artifacts; flag residual when inference is below a floor.",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "confidence_floor": {
+                            "type": "string",
+                            "enum": ["high", "medium", "low"],
+                        }
+                    },
+                },
+                output_schema={
+                    "type": "object",
+                    "properties": {
+                        "criteria": {"type": "array"},
+                        "scores": {"type": "object"},
+                        "confidence": {"type": "object"},
+                    },
+                },
+                tags=["specialist", "evaluate", "confidence"],
+                negotiable=False,
+                evidence={"provides": ["confidence bands"], "confidence": "heuristic"},
+                cost={"model_calls": "0", "budget_class": "free"},
+                failure_modes=["missing_prior_artifacts"],
+            ),
         ],
     )

@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-08-07
+
+### Added
+- `validate_against_intent` and `assess_confidence` capabilities + Deborah
+  estate handlers (intent_alignment scoring; aggregate confidence bands)
+- Manifest Stage-0 metadata for the new tools
+
 ## [0.3.2] — 2026-08-07
 
 ### Added

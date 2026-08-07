@@ -171,6 +171,167 @@ def critique_handler(step: dict[str, Any], context: dict[str, Any]) -> dict[str,
     return make_critique_handler(config=SpecialistConfig(extractor="rule"))(step, context)
 
 
+def _prior_evaluate(context: dict[str, Any]) -> dict[str, Any] | None:
+    for val in (context.get("artifacts") or {}).values():
+        if isinstance(val, dict) and (
+            val.get("criteria") or val.get("objections") is not None or val.get("scores")
+        ):
+            return val
+    return None
+
+
+def _prior_infer(context: dict[str, Any]) -> dict[str, Any] | None:
+    for val in (context.get("artifacts") or {}).values():
+        if isinstance(val, dict) and (val.get("claim") or val.get("evidence_refs") is not None):
+            if "criteria" not in val:  # not an evaluate product
+                return val
+    return None
+
+
+def make_validate_against_intent_handler(
+    *,
+    config: SpecialistConfig | None = None,
+    run_fn: Callable[..., Any] | None = None,
+) -> CapabilityDispatch:
+    """Check provisional reading / critique against declared intent + outcomes.
+
+    Reuses critique when no prior evaluate artifact; always scores intent_alignment.
+    """
+    critique = make_critique_handler(config=config, run_fn=run_fn)
+
+    def handler(step: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+        intent = str(
+            context.get("intent")
+            or (context.get("plan") or {}).get("intent")
+            or context.get("claim")
+            or context.get("request")
+            or ""
+        ).strip()
+        outcomes = context.get("outcomes") or (context.get("plan") or {}).get("outcomes") or []
+        if isinstance(outcomes, str):
+            outcomes = [outcomes]
+
+        prior = _prior_evaluate(context)
+        if prior is None:
+            out = critique(step, context)
+            prior = out.get("result") if isinstance(out, dict) else None
+            if not isinstance(prior, dict):
+                prior = {}
+
+        objections = list(prior.get("objections") or [])
+        infer = _prior_infer(context) or {}
+        claim_text = str(infer.get("claim") or infer.get("claim_original") or context.get("claim") or "")
+
+        # Heuristic alignment: intent keywords appear in claim restatement / objections empty
+        intent_tokens = {t.lower() for t in intent.replace(",", " ").split() if len(t) > 3}
+        claim_tokens = {t.lower() for t in claim_text.replace(",", " ").split() if len(t) > 3}
+        overlap = len(intent_tokens & claim_tokens) if intent_tokens else 0
+        if not intent:
+            align = "unassessed"
+            objections = objections + ["no intent declared for alignment check"]
+        elif objections:
+            align = "low"
+        elif overlap >= 2 or (intent_tokens and intent_tokens <= claim_tokens):
+            align = "high"
+        elif overlap >= 1:
+            align = "medium"
+        else:
+            align = "low"
+            objections = objections + ["provisional reading may drift from declared intent"]
+
+        scores = dict(prior.get("scores") or {})
+        scores["intent_alignment"] = align
+        criteria = list(prior.get("criteria") or [])
+        if "intent_alignment" not in criteria:
+            criteria = [*criteria, "intent_alignment"]
+
+        product = {
+            **prior,
+            "criteria": criteria,
+            "scores": scores,
+            "objections": objections,
+            "intent": intent,
+            "outcomes_checked": [str(o) for o in outcomes] if isinstance(outcomes, list) else [],
+            "confidence": {
+                **(prior.get("confidence") or {}),
+                "inference": align if align != "unassessed" else "low",
+                "basis": "milcah.validate_against_intent",
+            },
+        }
+        residual = align in {"low", "unassessed"} or bool(objections)
+        return {
+            "status": "completed",
+            "result": product,
+            "residual": residual,
+            "reason": "intent alignment low" if residual else None,
+        }
+
+    return handler
+
+
+def make_assess_confidence_handler() -> CapabilityDispatch:
+    """Aggregate confidence bands from prior observe/infer/evaluate artifacts."""
+
+    def handler(step: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+        dims = {"evidence": [], "inference": [], "execution": []}
+        sources: list[str] = []
+        for sid, val in (context.get("artifacts") or {}).items():
+            if not isinstance(val, dict):
+                continue
+            conf = val.get("confidence")
+            if not isinstance(conf, dict):
+                continue
+            sources.append(str(sid))
+            for d in dims:
+                if conf.get(d):
+                    dims[d].append(str(conf[d]).lower())
+
+        rank = {"high": 3, "medium": 2, "low": 1, "unassessed": 0}
+
+        def weakest(bands: list[str]) -> str:
+            if not bands:
+                return "unassessed"
+            return min(bands, key=lambda b: rank.get(b, 0))
+
+        evidence_b = weakest(dims["evidence"])
+        inference_b = weakest(dims["inference"])
+        execution_b = weakest(dims["execution"])
+
+        floor_ok = rank.get(inference_b, 0) >= rank.get(
+            str(context.get("confidence_floor") or "low").lower(), 1
+        )
+        product = {
+            "criteria": ["confidence_floor", "evidence_band", "inference_band"],
+            "scores": {
+                "confidence_floor": "high" if floor_ok else "low",
+                "evidence_band": evidence_b,
+                "inference_band": inference_b,
+            },
+            "ranking": ["open", "revise", "accept"]
+            if not floor_ok or inference_b == "low"
+            else ["accept", "open", "revise"],
+            "objections": (
+                []
+                if floor_ok
+                else [f"inference confidence {inference_b!r} below floor"]
+            ),
+            "assessed_from_steps": sources,
+            "confidence": {
+                "evidence": evidence_b,
+                "inference": inference_b,
+                "execution": execution_b,
+                "basis": "milcah.assess_confidence (aggregate prior steps)",
+            },
+        }
+        return {
+            "status": "completed",
+            "result": product,
+            "residual": not floor_ok,
+        }
+
+    return handler
+
+
 def deborah_dispatch(
     *,
     config: SpecialistConfig | None = None,
@@ -178,11 +339,17 @@ def deborah_dispatch(
 ) -> dict[str, CapabilityDispatch]:
     """Map both bare and namespaced stems used in Deborah ASSUMES / CALL steps."""
     h = make_critique_handler(config=config, run_fn=run_fn)
+    v = make_validate_against_intent_handler(config=config, run_fn=run_fn)
+    a = make_assess_confidence_handler()
     return {
         "milcah.critique": h,
         "critique": h,
         "milcah.coherence_check": h,
         "coherence_check": h,
+        "milcah.validate_against_intent": v,
+        "validate_against_intent": v,
+        "milcah.assess_confidence": a,
+        "assess_confidence": a,
     }
 
 
@@ -203,6 +370,19 @@ def capability_index_entries() -> dict[str, dict[str, Any]]:
             "kind": "tool",
             "tags": ["specialist", "coherence"],
             "negotiable": True,
+        },
+        "milcah.validate_against_intent": {
+            "name": "milcah.validate_against_intent",
+            "product": "milcah",
+            "kind": "tool",
+            "tags": ["evaluate", "intent", "specialist"],
+            "negotiable": True,
+        },
+        "milcah.assess_confidence": {
+            "name": "milcah.assess_confidence",
+            "product": "milcah",
+            "kind": "tool",
+            "tags": ["evaluate", "confidence", "specialist"],
         },
     }
 

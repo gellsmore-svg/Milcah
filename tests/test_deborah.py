@@ -114,6 +114,73 @@ def test_critique_negotiator_clarifies_empty_claim():
     assert getattr(msg, "type", None) == "clarification_request"
 
 
+def test_validate_against_intent_and_assess_confidence():
+    from milcah.deborah import (
+        make_assess_confidence_handler,
+        make_validate_against_intent_handler,
+    )
+
+    def fake_run(request, config=None):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            claims=["c"],
+            objections=["weak"],
+            evidence=["e"],
+            citations=[],
+            confidence=0.4,
+            terminal_reason="converged",
+            trace_metadata={},
+        )
+
+    v = make_validate_against_intent_handler(run_fn=fake_run)
+    out = v(
+        {},
+        {
+            "intent": "Ground a substrate claim with evidence",
+            "claim": "Is substrate coherent?",
+            "artifacts": {
+                "s3": {
+                    "claim": "Given evidence, substrate coherence is provisional",
+                    "evidence_refs": ["1"],
+                    "confidence": {
+                        "evidence": "medium",
+                        "inference": "medium",
+                        "execution": "high",
+                    },
+                }
+            },
+        },
+    )
+    assert out["status"] == "completed"
+    assert "intent_alignment" in out["result"]["scores"]
+
+    a = make_assess_confidence_handler()
+    out2 = a(
+        {},
+        {
+            "confidence_floor": "high",
+            "artifacts": {
+                "s3": {
+                    "confidence": {
+                        "evidence": "medium",
+                        "inference": "low",
+                        "execution": "high",
+                    }
+                }
+            },
+        },
+    )
+    assert out2["status"] == "completed"
+    assert out2.get("residual") is True
+
+
+def test_manifest_lists_new_tools():
+    names = {c.name for c in build_manifest().capabilities}
+    assert "validate_against_intent" in names
+    assert "assess_confidence" in names
+
+
 def test_default_critique_handler_with_injected_orchestrator_path():
     """Offline: inject run_specialist via make_critique_handler — no Hoglah."""
     from milcah.specialist import run_specialist
