@@ -91,21 +91,6 @@ class HoglahExtractorConfig:
 class HoglahExtractor:
     """Reasoning extraction whose model call runs through Hoglah → Ollama."""
 
-    def _job_metadata(self) -> dict[str, Any]:
-        """Metadata attached to every Hoglah job this extractor submits.
-
-        Carries the correlation ids so galeed can attribute each model call —
-        and therefore its token cost — to the specialist run that caused it.
-        Keys omitted when unset rather than sent as None, so hoglah's
-        ``request_meta.get("session_id") or "hoglah"`` fallback still applies.
-        """
-        meta: dict[str, Any] = {"source": "milcah"}
-        if self.config.session_id:
-            meta["session_id"] = self.config.session_id
-        if self.config.trace_id:
-            meta["trace_id"] = self.config.trace_id
-        return meta
-
     def __init__(
         self,
         config: HoglahExtractorConfig | None = None,
@@ -160,6 +145,25 @@ class HoglahExtractor:
 class _Submitter:
     """A configured Hoglah submission backend with single + batch execution."""
 
+    config: HoglahExtractorConfig
+
+    def _job_metadata(self) -> dict[str, Any]:
+        """Metadata attached to every Hoglah job this submitter sends.
+
+        Lives on the base class because *every* transport needs it: the
+        correlation ids are what let galeed attribute a model call — and its
+        token cost — to the specialist run that caused it. Keys are omitted
+        when unset rather than sent as None, so hoglah's
+        ``request_meta.get("session_id") or "hoglah"`` fallback still applies.
+        """
+        config = getattr(self, "config", None)
+        meta: dict[str, Any] = {"source": "milcah"}
+        if getattr(config, "session_id", None):
+            meta["session_id"] = config.session_id
+        if getattr(config, "trace_id", None):
+            meta["trace_id"] = config.trace_id
+        return meta
+
     def run(self, prompt: str, model: str) -> str:
         raise NotImplementedError
 
@@ -181,6 +185,7 @@ class _StoreSubmitter(_Submitter):
     def __init__(self, config: HoglahExtractorConfig) -> None:
         from hoglah import Hoglah, JobStatus
 
+        self.config = config          # retained for _job_metadata correlation
         self._JobStatus = JobStatus
         self._timeout = config.timeout
         self._client = Hoglah(
@@ -231,6 +236,7 @@ class _MessagingSubmitter(_Submitter):
     def __init__(self, config: HoglahExtractorConfig) -> None:
         from hoglah.messaging_submitter import MessagingSubmitter, make_submitter_transport
 
+        self.config = config          # retained for _job_metadata correlation
         self._timeout = config.timeout
         self._submitter = MessagingSubmitter(
             make_submitter_transport(
