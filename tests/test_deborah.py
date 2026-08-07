@@ -90,9 +90,28 @@ def test_deborah_dispatch_keys():
 def test_capability_index_entries_and_manifest_critique_alias():
     entries = capability_index_entries()
     assert "milcah.critique" in entries
+    assert entries["milcah.critique"].get("negotiable") is True
     names = {c.name for c in build_manifest().capabilities}
     assert "coherence_check" in names
     assert "critique" in names
+
+
+def test_critique_negotiator_accepts_well_formed_claim():
+    from milcah.deborah import critique_negotiator
+
+    msg = critique_negotiator(
+        {"claim": "Is the framework internally coherent?", "assumes": ["milcah.critique"]},
+        [],
+        0,
+    )
+    assert getattr(msg, "type", None) == "acceptance"
+
+
+def test_critique_negotiator_clarifies_empty_claim():
+    from milcah.deborah import critique_negotiator
+
+    msg = critique_negotiator({"claim": "", "intent": ""}, [], 0)
+    assert getattr(msg, "type", None) == "clarification_request"
 
 
 def test_default_critique_handler_with_injected_orchestrator_path():

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-08-07
+
+### Added
+- `milcah.deborah.critique_negotiator` — content gate for Deborah slice
+  (prefers deborah.runtime.negotiate when installed)
+
 ## [0.3.1] — 2026-08-07
 
 ### Added

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "milcah"
-version = "0.3.1"
+version = "0.3.2"
 description = "Milcah — the Coherence Engine: recursive, multi-LLM coherence pressure-testing of frameworks and worldviews."
 readme = "README.md"
 requires-python = ">=3.11"

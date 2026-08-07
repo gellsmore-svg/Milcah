@@ -195,11 +195,46 @@ def capability_index_entries() -> dict[str, dict[str, Any]]:
             "kind": "tool",
             "alias_of": "coherence_check",
             "tags": ["critique", "evaluate", "specialist"],
+            "negotiable": True,
         },
         "milcah.coherence_check": {
             "name": "milcah.coherence_check",
             "product": "milcah",
             "kind": "tool",
             "tags": ["specialist", "coherence"],
+            "negotiable": True,
         },
     }
+
+
+def critique_negotiator(proposal: dict[str, Any], history: list, round_index: int) -> Any:
+    """Capability-side content gate for milcah.critique.
+
+    Prefers Deborah's shared implementation when installed; otherwise a local
+    thin underspecified/out-of-scope check (no LLM).
+    """
+    try:
+        from deborah.runtime.negotiate import (  # type: ignore[import-not-found]
+            critique_content_negotiator,
+        )
+
+        return critique_content_negotiator(proposal, history, round_index)
+    except ImportError:
+        pass
+
+    # Local fallback (no deborah): minimal shape check
+    claim = str(proposal.get("claim") or proposal.get("intent") or "").strip()
+    # Duck-type message
+    from types import SimpleNamespace
+
+    if len(claim) < 8:
+        return SimpleNamespace(
+            type="clarification_request",
+            role="capability",
+            payload={"need": "a single assertion to pressure-test", "failure_mode": "underspecified-claim"},
+        )
+    return SimpleNamespace(
+        type="acceptance",
+        role="capability",
+        payload={"note": "milcah local negotiator accept", "assumes": proposal.get("assumes")},
+    )
