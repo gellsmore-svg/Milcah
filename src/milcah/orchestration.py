@@ -61,6 +61,10 @@ class OrchestrationConfig:
     max_nodes: int = 12
     max_claims: int = 8
     max_steps: int = 20
+    # Correlation for the trace spine, threaded from the specialist request so
+    # every role's model call is attributable to the run that caused it.
+    session_id: str | None = None
+    trace_id: str | None = None
     research: WebResearchClient | None = None
 
     def model_for(self, role: Role) -> str:
@@ -70,6 +74,7 @@ class OrchestrationConfig:
         return HoglahExtractorConfig(
             model=self.model_for(role), transport=self.transport,
             db_path=self.db_path, output_dir=self.output_dir, timeout=self.timeout,
+            session_id=self.session_id, trace_id=self.trace_id,
         )
 
 

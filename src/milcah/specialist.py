@@ -151,7 +151,12 @@ def _bounded_config(config: OrchestrationConfig, request: SpecialistRequest) -> 
         requested_depth = max(0, int(request.max_iterations))
     except (TypeError, ValueError):
         requested_depth = config.max_depth
-    return replace(config, max_depth=min(config.max_depth, requested_depth))
+    return replace(
+        config,
+        max_depth=min(config.max_depth, requested_depth),
+        session_id=request.session_id or config.session_id,
+        trace_id=request.trace_id or config.trace_id,
+    )
 
 
 def _trace_metadata(request: SpecialistRequest) -> dict[str, Any]:

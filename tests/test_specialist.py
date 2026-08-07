@@ -96,3 +96,40 @@ def test_run_specialist_accepts_dict_like_adapter_results():
     assert validate_specialist_result(result) == []
     assert result.claims == ["adapted claim"]
     assert result.trace_metadata["mode"] == "coherence"
+
+
+# --- correlation: cost must be attributable to the run that caused it -------
+
+
+def test_session_and_trace_ids_reach_the_hoglah_job_metadata():
+    """Without this the model calls land under the generic "hoglah" session and
+    per-run cost cannot be measured — which is exactly what happened in
+    Experiment 1A, where every run reported zero tokens."""
+    from milcah.hoglah_extractor import HoglahExtractor
+    from milcah.orchestration import OrchestrationConfig, Role
+    from milcah.specialist import _bounded_config
+
+    request = SpecialistRequest(
+        query="q", session_id="exp1-run-3", trace_id="trace-abc", max_iterations=1
+    )
+    config = _bounded_config(OrchestrationConfig(), request)
+
+    assert config.session_id == "exp1-run-3"
+    assert config.trace_id == "trace-abc"
+
+    metadata = HoglahExtractor(config.hoglah_config(Role.PROPOSER))._job_metadata()
+    assert metadata["session_id"] == "exp1-run-3"
+    assert metadata["trace_id"] == "trace-abc"
+    assert metadata["source"] == "milcah"
+
+
+def test_absent_correlation_ids_are_omitted_not_sent_as_none():
+    """Hoglah falls back to the "hoglah" session on a missing key; a literal
+    None would defeat that fallback."""
+    from milcah.hoglah_extractor import HoglahExtractor
+    from milcah.orchestration import OrchestrationConfig, Role
+
+    metadata = HoglahExtractor(
+        OrchestrationConfig().hoglah_config(Role.PROPOSER)
+    )._job_metadata()
+    assert metadata == {"source": "milcah"}

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import pathlib
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable
 
 from milcah.extraction import build_extraction_prompt, parse_extraction_response
 from milcah.models import Framework, ReasoningUnit
@@ -71,6 +71,13 @@ class HoglahExtractorConfig:
     db_path: str = _DEFAULT_DB_PATH
     output_dir: str = _DEFAULT_OUTPUT_DIR
     # messaging transports
+    # Correlation for the family trace spine. Threaded from the specialist
+    # request so every model call Milcah makes is attributable to the run that
+    # caused it — without this, cost lands under the generic "hoglah" session
+    # and per-run cost cannot be measured at all.
+    session_id: str | None = None
+    trace_id: str | None = None
+    # messaging transports
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_input_topic: str = "hoglah-jobs"
     kafka_results_topic: str = "hoglah-results"
@@ -83,6 +90,21 @@ class HoglahExtractorConfig:
 
 class HoglahExtractor:
     """Reasoning extraction whose model call runs through Hoglah → Ollama."""
+
+    def _job_metadata(self) -> dict[str, Any]:
+        """Metadata attached to every Hoglah job this extractor submits.
+
+        Carries the correlation ids so galeed can attribute each model call —
+        and therefore its token cost — to the specialist run that caused it.
+        Keys omitted when unset rather than sent as None, so hoglah's
+        ``request_meta.get("session_id") or "hoglah"`` fallback still applies.
+        """
+        meta: dict[str, Any] = {"source": "milcah"}
+        if self.config.session_id:
+            meta["session_id"] = self.config.session_id
+        if self.config.trace_id:
+            meta["trace_id"] = self.config.trace_id
+        return meta
 
     def __init__(
         self,
@@ -173,7 +195,7 @@ class _StoreSubmitter(_Submitter):
         job_ids = [
             self._client.submit(
                 prompt=p, model=model, timeout_seconds=int(self._timeout),
-                tags=["milcah", "extraction"], metadata={"source": "milcah"},
+                tags=["milcah", "extraction"], metadata=self._job_metadata(),
             )
             for p in prompts
         ]
@@ -227,7 +249,7 @@ class _MessagingSubmitter(_Submitter):
     def run(self, prompt: str, model: str) -> str:
         result = self._submitter.submit(
             kind="generate", prompt=prompt, model=model, timeout=self._timeout,
-            tags=["milcah", "extraction"], metadata={"source": "milcah"},
+            tags=["milcah", "extraction"], metadata=self._job_metadata(),
         )
         if result.get("status") != "completed":
             raise HoglahExtractionError(
@@ -241,7 +263,7 @@ class _MessagingSubmitter(_Submitter):
     def embed(self, text: str, model: str) -> list[float]:
         result = self._submitter.submit(
             kind="embed", prompt=text, model=model, timeout=self._timeout,
-            tags=["milcah", "extraction"], metadata={"source": "milcah"},
+            tags=["milcah", "extraction"], metadata=self._job_metadata(),
         )
         if result.get("status") != "completed":
             raise HoglahExtractionError(
