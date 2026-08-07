@@ -68,6 +68,17 @@ def _coherence_output_schema() -> dict:
     }
 
 
+def _capability(name: str, description: str, **kwargs):
+    """Build a capability; Stage-0 kwargs require keturah≥0.4 (fail-soft if older)."""
+    try:
+        return capability(name, description, **kwargs)
+    except TypeError:
+        # Pre-0.4 keturah: drop Stage-0 fields.
+        for key in ("negotiable", "semantics", "evidence", "cost", "failure_modes"):
+            kwargs.pop(key, None)
+        return capability(name, description, **kwargs)
+
+
 def build_manifest() -> Manifest:
     # `critique` is the Deborah ASSUMES / CALL name for the same specialist surface
     # as `coherence_check` (Tirzah planner + MCP). Both share schemas and tags.
@@ -76,25 +87,38 @@ def build_manifest() -> Manifest:
         "research. Returns claims, objections, evidence, citations, a confidence in [0,1], "
         "and a terminal_reason."
     )
+    stage0 = dict(
+        negotiable=True,
+        semantics={
+            "purpose": coherence_desc,
+            "can": ["detect-contradiction", "detect-unsupported-inference"],
+            "cannot": ["establish-ground-truth", "retrieve-sources"],
+        },
+        evidence={"provides": ["objections", "counter-frameworks"], "confidence": "heuristic"},
+        cost={"model_calls": "1..3", "budget_class": "medium"},
+        failure_modes=["underspecified-claim", "domain-out-of-scope", "blocked"],
+    )
     return manifest(
         "milcah",
         version=_version(),
         description="Specialist recursive-coherence and counter-framework research engine.",
         capabilities=[
-            capability(
+            _capability(
                 "coherence_check",
                 coherence_desc,
                 input_schema=_coherence_input_schema(),
                 output_schema=_coherence_output_schema(),
                 tags=["specialist", "coherence", "planner"],
+                **stage0,
             ),
-            capability(
+            _capability(
                 "critique",
                 coherence_desc
                 + " Alias used by Deborah PLAN ASSUMES/CALL (milcah.critique).",
                 input_schema=_coherence_input_schema(),
                 output_schema=_coherence_output_schema(),
                 tags=["specialist", "coherence", "critique", "evaluate", "planner"],
+                **stage0,
             ),
         ],
     )

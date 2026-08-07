@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-08-07
+
+### Added
+- Stage 0 Keturah fields on `coherence_check` / `critique` (`negotiable`,
+  semantics, evidence, cost, failure_modes) when keturah≥0.4 is installed;
+  fail-soft on older keturah.
+
 ## [0.3.0] — 2026-08-07
 
 ### Added
