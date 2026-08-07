@@ -423,6 +423,7 @@ def _cmd_specialist(args: argparse.Namespace) -> int:
     if args.context_file:
         context = sys.stdin.read() if args.context_file == "-" else Path(args.context_file).read_text(encoding="utf-8")
     cfg = SpecialistConfig(
+        extractor=getattr(args, "extractor", "rule") or "rule",
         orchestration=OrchestrationConfig(
             default_model=args.model or OrchestrationConfig.default_model,
             transport=args.transport,
@@ -433,7 +434,7 @@ def _cmd_specialist(args: argparse.Namespace) -> int:
             max_claims=args.max_claims,
             max_steps=args.max_steps,
             research=_web_research_client(args),
-        )
+        ),
     )
     result = run_specialist(
         SpecialistRequest(
@@ -645,6 +646,12 @@ def main(argv: list[str] | None = None) -> int:
     ctx.add_argument("--context", default="", help="Framework text to analyse.")
     ctx.add_argument("--context-file", default=None, help="Framework file to analyse, or '-' for stdin.")
     p_specialist.add_argument("--json", action="store_true", help="Emit the SpecialistResult contract JSON.")
+    p_specialist.add_argument(
+        "--extractor",
+        choices=["rule", "hoglah"],
+        default="rule",
+        help="rule = deterministic baseline (default); hoglah = LLM unit extraction via Hoglah.",
+    )
     p_specialist.add_argument("--model", default=None, help="Default model for Milcah roles.")
     p_specialist.add_argument(
         "--transport",

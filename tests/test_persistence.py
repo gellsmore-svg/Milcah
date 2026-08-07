@@ -48,6 +48,20 @@ def test_history_unknown_framework_is_empty(tmp_path):
     assert JsonFileStore(tmp_path).load("nope", "x") is None
 
 
+def test_history_skips_corrupt_snapshot_files(tmp_path):
+    """#18: one corrupt JSON file must not erase the rest of the trend."""
+    store = JsonFileStore(tmp_path)
+    fw, units, onto, metrics = _analyse("A primitive. A claim rests on it.")
+    good = build_snapshot(fw, units, onto, metrics, created_at="2026-06-23T10:00:00Z")
+    store.save(good)
+    # Write a sibling corrupt file in the same framework directory.
+    corrupt = tmp_path / fw.id / "corrupt__bad.json"
+    corrupt.write_text("{not valid json", encoding="utf-8")
+    hist = store.history(fw.id)
+    assert len(hist) == 1
+    assert hist[0].snapshot_id == good.snapshot_id
+
+
 def test_compute_trend_tracks_metric_movement():
     # Two snapshots of the same framework with coherence improving over time.
     a = Snapshot(framework_id="f", framework_title="F", created_at="2026-06-23T10:00:00Z",

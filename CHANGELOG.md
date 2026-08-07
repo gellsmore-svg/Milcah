@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-08-07
+
+### Added
+- **Deborah estate adapter** (`milcah.deborah`): `critique` / `coherence_check`
+  dispatch for Deborah's thin PLAN interpreter — maps
+  :func:`run_specialist` onto a COGNITION **evaluate** product (criteria, scores,
+  objections, confidence bands). `deborah_dispatch()` and capability index
+  entries for `milcah.critique`.
+- Manifest capability **`critique`** — alias of `coherence_check` for Deborah
+  PLAN ASSUMES/CALL (`milcah.critique@…`).
+- `milcah specialist --extractor rule|hoglah` (#16) — matches library
+  `SpecialistConfig.extractor`.
+
+### Fixed
+- Regression test for real `orchestrate()` → `specialist_result_from_orchestration`
+  path (#13) — guards `reasoning.ontology` claim extraction.
+- `JsonFileStore.history` corrupt-snapshot skip covered by test (#18).
+
+## [0.2.x]
+
 ### Fixed
 - `milcah serve` closes its FR10 store on shutdown, including on Ctrl-C (#15);
   the `--store mongo` path leaked a `MongoClient` for the life of the process.

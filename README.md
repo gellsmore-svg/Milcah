@@ -113,7 +113,7 @@ rather than reimplementing them:
 | [Tirzah](https://github.com/gellsmore-svg/tirzah) | graph memory + retrieval |
 | [Mahalath](https://github.com/gellsmore-svg/mahalath) | ontology construction |
 | [Hoglah](https://github.com/gellsmore-svg/hoglah) | local-first execution queue |
-| [Deborah](https://github.com/gellsmore-svg/Deborah) | the process meta-language used to describe it |
+| [Deborah](https://github.com/gellsmore-svg/Deborah) | process language; `milcah.deborah` plugs critique into crystallised PLANs |
 
 ## Develop
 

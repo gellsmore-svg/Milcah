@@ -124,3 +124,46 @@ def test_adapter_maps_research_provenance_to_citations():
 def test_request_dataclass_roundtrips():
     assert validate_specialist_request(SpecialistRequest(query="q", mode="research")) == []
     assert validate_specialist_result(SpecialistResult(claims=["c"], confidence=0.4)) == []
+
+
+def test_adapter_maps_real_orchestration_result():
+    """#13: guard the real orchestrate() → specialist_result_from_orchestration path.
+
+    Injects offline role seams (prompt → JSON strings) so no Hoglah is required;
+    still exercises the real OrchestrationResult shape (reasoning.ontology).
+    """
+    from milcah.extraction import RuleBasedExtractor, extract
+    from milcah.ingestion import ingest_text
+    from milcah.orchestration import OrchestrationConfig, orchestrate
+
+    fw = ingest_text(
+        "Space is discrete. Therefore time is discrete. "
+        "This rests on the assumption that discreteness transfers across dimensions.",
+        title="Adapter regression",
+    )
+    units = extract(fw, RuleBasedExtractor())
+    assert units, "rule extractor must yield units for the adapter path"
+
+    orch = orchestrate(
+        fw,
+        units,
+        config=OrchestrationConfig(max_depth=0, max_nodes=0),
+        expand=lambda node, framework_id: [],
+        challenge=lambda prompt, model: (
+            '{"objections":[{"type":"claim","text":"that ignores continuity","targets":"c"}],'
+            '"counter_frameworks":[]}'
+        ),
+        analyse=lambda prompt, model: "{}",
+    )
+    result = specialist_result_from_orchestration(orch)
+    assert validate_specialist_result(result) == []
+    # Real path must read claim nodes from reasoning.ontology, not a .units attr
+    assert hasattr(orch.reasoning, "ontology")
+    assert orch.reasoning.ontology is not None
+    assert result.objections  # challenger injection produced an objection
+    assert result.terminal_reason in {
+        "converged",
+        "no_objections",
+        "insufficient_evidence",
+        "max_iterations",
+    }

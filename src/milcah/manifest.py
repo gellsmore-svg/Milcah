@@ -69,6 +69,13 @@ def _coherence_output_schema() -> dict:
 
 
 def build_manifest() -> Manifest:
+    # `critique` is the Deborah ASSUMES / CALL name for the same specialist surface
+    # as `coherence_check` (Tirzah planner + MCP). Both share schemas and tags.
+    coherence_desc = (
+        "Pressure-test a claim/framework for internal coherence, or run counter-framework "
+        "research. Returns claims, objections, evidence, citations, a confidence in [0,1], "
+        "and a terminal_reason."
+    )
     return manifest(
         "milcah",
         version=_version(),
@@ -76,12 +83,18 @@ def build_manifest() -> Manifest:
         capabilities=[
             capability(
                 "coherence_check",
-                "Pressure-test a claim/framework for internal coherence, or run counter-framework "
-                "research. Returns claims, objections, evidence, citations, a confidence in [0,1], "
-                "and a terminal_reason.",
+                coherence_desc,
                 input_schema=_coherence_input_schema(),
                 output_schema=_coherence_output_schema(),
                 tags=["specialist", "coherence", "planner"],
+            ),
+            capability(
+                "critique",
+                coherence_desc
+                + " Alias used by Deborah PLAN ASSUMES/CALL (milcah.critique).",
+                input_schema=_coherence_input_schema(),
+                output_schema=_coherence_output_schema(),
+                tags=["specialist", "coherence", "critique", "evaluate", "planner"],
             ),
         ],
     )
