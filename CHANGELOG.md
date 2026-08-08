@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-08-08
+
+**Action the 2026-08-08 functional/code review**
+([docs/review-2026-08-08.md](docs/review-2026-08-08.md)).
+
+### Fixed
+- **H1** — vacuous all-RESOLVED structural placement no longer prints
+  `global_coherence: 1.0`; field is suppressed with
+  `structural_placement_ratio` + `placement_scaffold` flags; specialist
+  confidence becomes `unassessed` when coherence is suppressed
+- **H2** — word-boundary markers, earliest match, negation window, discourse
+  markers only when little prose precedes them
+- **H3** — sentence splitter protects abbreviations / initials (`Dr.`, `Fig.`,
+  `e.g.`)
+- **H4** — blocked specialist results set `error` / `error_type` and unassessed
+  confidence bands
+- **M1** — lightweight text fallacy hints so `fallacy_load` is not always 0
+- **M2** — strip markdown headings/lists/fences before rule extraction
+- **M3** — pin `hoglah>=0.10.4,<0.11`
+- **L1** — version tests skip on stale editable installs
+- **L2** — add `foundation_ratio` (alias retained as `ontological_completeness`)
+
+### Added
+- Adversarial extraction tests (negation, marker collision, abbreviations)
+- Opt-in `RUN_HOGLAH_TESTS=1` live extractor smoke
+
 ## [0.4.0] — 2026-08-07
 
 ### Added

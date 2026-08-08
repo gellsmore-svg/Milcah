@@ -123,11 +123,24 @@ def specialist_result_from_orchestration(result: Any) -> SpecialistResult:
     counter_units = [u for cf in counter for u in (getattr(cf, "units", []) or [])]
 
     metrics = getattr(result, "metrics", None)
-    coherence = getattr(metrics, "global_coherence", 0.0) if metrics is not None else 0.0
-    try:
-        confidence = max(0.0, min(1.0, float(coherence)))
-    except (TypeError, ValueError):
+    coherence = getattr(metrics, "global_coherence", None) if metrics is not None else None
+    confidence_bands = None
+    if coherence is None:
+        # Scaffold-only structural ratio is not argument quality (review H1).
         confidence = 0.0
+        confidence_bands = {"overall": "unassessed"}
+        if metrics is not None:
+            ratio = getattr(metrics, "structural_placement_ratio", None)
+            if ratio is not None:
+                confidence_bands = {
+                    "overall": "unassessed",
+                    "structural_placement_ratio": ratio,
+                }
+    else:
+        try:
+            confidence = max(0.0, min(1.0, float(coherence)))
+        except (TypeError, ValueError):
+            confidence = 0.0
 
     trace = list(getattr(result, "trace", []) or [])
     return SpecialistResult(
@@ -136,6 +149,7 @@ def specialist_result_from_orchestration(result: Any) -> SpecialistResult:
         evidence=[e for e in evidence if e],
         citations=_research_citations([*objection_units, *counter_units]),
         confidence=confidence,
+        confidence_bands=confidence_bands,
         terminal_reason=_terminal_reason_for(reasoning, claims, objections),
         trace_metadata={"trace_steps": len(trace), "roles": dict(getattr(result, "roles", {}) or {})},
     )

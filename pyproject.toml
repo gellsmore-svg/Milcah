@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "milcah"
-version = "0.4.0"
+version = "0.5.0"
 description = "Milcah — the Coherence Engine: recursive, multi-LLM coherence pressure-testing of frameworks and worldviews."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,14 +23,14 @@ mongo = ["pymongo>=4.6"]
 # polysemy / staleness to inform placement. Needs mahalath + pymongo.
 mahalath = ["mahalath>=1.1.0", "pymongo>=4.6"]
 # LLM-backed extraction executed through Hoglah (FR2 quality path).
-hoglah = ["hoglah>=0.8.0"]
-hoglah-kafka = ["hoglah>=0.8.0", "confluent-kafka>=2.3"]
-hoglah-rabbitmq = ["hoglah>=0.8.0", "pika>=1.3"]
+hoglah = ["hoglah>=0.10.4,<0.11"]
+hoglah-kafka = ["hoglah>=0.10.4,<0.11", "confluent-kafka>=2.3"]
+hoglah-rabbitmq = ["hoglah>=0.10.4,<0.11", "pika>=1.3"]
 # Read-only snapshot viewer in the browser (milcah serve).
 web = ["fastapi>=0.110", "uvicorn>=0.29"]
 # Emit coherence-run events onto the family trace spine (MILCAH_GALEED_ENABLED=1).
 galeed = ["galeed>=0.1", "pymongo>=4.6"]
-hoglah-redis = ["hoglah>=0.8.0", "redis>=5.0"]
+hoglah-redis = ["hoglah>=0.10.4,<0.11", "redis>=5.0"]
 
 [project.scripts]
 milcah = "milcah.cli:main"

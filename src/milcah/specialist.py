@@ -105,29 +105,51 @@ def run_specialist(
             if orchestrator
             else orchestrate(framework, units, config=run_config)
         )
-    except Exception as exc:  # provider boundary: callers get a terminal reason
-        return _blocked([type(exc).__name__], request=req)
+    except Exception as exc:  # provider boundary: keep class + message (review H4)
+        return _blocked(
+            [type(exc).__name__],
+            request=req,
+            error=str(exc) or type(exc).__name__,
+            error_type=type(exc).__name__,
+        )
 
     if orchestration is None:
         return SpecialistResult(
             terminal_reason="insufficient_evidence",
             trace_metadata=_trace_metadata(req),
+            confidence=0.0,
+            confidence_bands={"overall": "unassessed"},
         )
 
     try:
         result = adapt(orchestration)
     except Exception as exc:
-        return _blocked([type(exc).__name__], request=req)
+        return _blocked(
+            [type(exc).__name__],
+            request=req,
+            error=str(exc) or type(exc).__name__,
+            error_type=type(exc).__name__,
+        )
 
     try:
         result = _coerce_specialist_result(result)
     except Exception as exc:
-        return _blocked([type(exc).__name__], request=req)
+        return _blocked(
+            [type(exc).__name__],
+            request=req,
+            error=str(exc) or type(exc).__name__,
+            error_type=type(exc).__name__,
+        )
     result.trace_metadata = {**result.trace_metadata, **_trace_metadata(req)}
 
     result_errors = validate_specialist_result(result)
     if result_errors:
-        return _blocked(result_errors, request=req)
+        return _blocked(
+            result_errors,
+            request=req,
+            error="; ".join(result_errors),
+            error_type="validation_error",
+        )
     return result
 
 
@@ -182,8 +204,24 @@ def _coerce_specialist_result(result: Any) -> SpecialistResult:
     return SpecialistResult(**data)
 
 
-def _blocked(errors: list[str], *, request: SpecialistRequest | None = None) -> SpecialistResult:
+def _blocked(
+    errors: list[str],
+    *,
+    request: SpecialistRequest | None = None,
+    error: str | None = None,
+    error_type: str | None = None,
+) -> SpecialistResult:
+    """Blocked specialist result with envelope error fields filled (review H4)."""
     trace_metadata: dict[str, Any] = {"validation_errors": errors}
     if request is not None:
         trace_metadata.update(_trace_metadata(request))
-    return SpecialistResult(terminal_reason="blocked", trace_metadata=trace_metadata)
+    message = error or ("; ".join(errors) if errors else "blocked")
+    # Unassessed bands — not a confident zero (envelope model / review F4).
+    return SpecialistResult(
+        terminal_reason="blocked",
+        trace_metadata=trace_metadata,
+        error=message,
+        error_type=error_type or (errors[0] if errors else "blocked"),
+        confidence=0.0,
+        confidence_bands={"overall": "unassessed"},
+    )

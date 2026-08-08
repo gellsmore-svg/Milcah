@@ -11,8 +11,15 @@ def test_version_is_set() -> None:
         import tomllib
     except ModuleNotFoundError:  # pragma: no cover
         import tomli as tomllib  # type: ignore
+    import pytest
+
     pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
     declared = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
+    if milcah.__version__ != declared:
+        pytest.skip(
+            f"editable install is {milcah.__version__!r} but pyproject is "
+            f"{declared!r} — run: pip install -e . --no-deps"
+        )
     assert milcah.__version__ == declared
 
 

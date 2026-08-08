@@ -37,10 +37,13 @@ def test_metrics_counts_and_ratios():
     assert m.bridge_load == 1  # one bridge (enthymeme would also count)
     assert m.unresolved_load == 4  # only obs is resolved
     assert m.dependency_depth == 4  # obs -> asm -> brg -> con
-    # coherence
+    # coherence — reasoned placement states present, so global_coherence is live
     assert m.global_coherence == round(1 / 5, 3)
+    assert m.structural_placement_ratio == round(1 / 5, 3)
+    assert m.placement_scaffold is False
     assert m.breadth == 5  # five distinct types present
-    assert m.ontological_completeness == round(1 / 5, 3)  # one foundation (obs)
+    assert m.foundation_ratio == round(1 / 5, 3)  # one foundation (obs)
+    assert m.ontological_completeness == m.foundation_ratio
     assert m.fracture_density == round(2 / 5, 3)  # contradictory + multiple-candidates
     assert m.uncertainty_burden == round(2 / 5, 3)  # partially + dependent-on-bridge
 
@@ -59,4 +62,23 @@ def test_metrics_exclude_social_signals():
 def test_metrics_from_built_ontology_all_resolved():
     o = build_ontology("f", [ReasoningUnit.make(framework_id="f", unit_type=RT.OBSERVATION, text="a foundation")])
     m = compute_metrics(o)
-    assert m.global_coherence == 1.0 and m.fracture_density == 0.0 and m.ontological_completeness == 1.0
+    # Vacuous all-RESOLVED structural scaffold: do not advertise coherence=1.0 (H1).
+    assert m.global_coherence is None
+    assert m.structural_placement_ratio == 1.0
+    assert m.placement_scaffold is True
+    assert m.fracture_density == 0.0 and m.foundation_ratio == 1.0
+
+
+def test_contradiction_framework_not_perfect_coherence():
+    """A self-contradicting chain must not score structural perfection as quality."""
+    from milcah.extraction import extract
+    from milcah.ingestion import ingest_text
+
+    fw = ingest_text(
+        "All swans are white. This swan is black. Therefore all swans are white.",
+        title="contradiction",
+    )
+    o = build_ontology(fw.id, extract(fw))
+    m = compute_metrics(o)
+    # Either suppressed (all structural-resolved) or < 1.0 if bridges lower it.
+    assert m.global_coherence is None or m.global_coherence < 1.0

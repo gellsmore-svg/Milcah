@@ -28,6 +28,30 @@ def test_split_sentences() -> None:
     assert split_sentences("One. Two! Three?") == ["One.", "Two!", "Three?"]
 
 
+def test_split_sentences_keeps_abbreviations() -> None:
+    s = split_sentences("Dr. Smith disagrees. He cites Fig. 3 and p. 12.")
+    assert len(s) == 2
+    assert s[0].startswith("Dr.")
+    s2 = split_sentences("Use e.g. remote work. It works.")
+    assert len(s2) == 2
+
+
+def test_classify_negation_and_collision() -> None:
+    # Negation window: not a commitment / not an axiom / never assume
+    assert classify_sentence("This does not necessarily follow from the premise.")[0] == ReasoningUnitType.CLAIM
+    assert classify_sentence("That is not an axiom, it is a conjecture.")[0] == ReasoningUnitType.CLAIM
+    assert classify_sentence("I never assume the reader knows this.")[0] == ReasoningUnitType.CLAIM
+    # Earliest marker wins: "assume" before "measured"
+    t, markers = classify_sentence(
+        "We assume that measured output captures what matters about work."
+    )
+    assert t == ReasoningUnitType.ASSUMPTION
+    assert "assume" in markers
+    # Incidental everyday use should not over-type
+    assert classify_sentence("The label is clearly printed on the box.")[0] == ReasoningUnitType.CLAIM
+    assert classify_sentence("She left because it was raining.")[0] == ReasoningUnitType.CLAIM
+
+
 def test_rule_based_extract_types_units_and_links_dependencies() -> None:
     text = (
         "We assume space is continuous. Matter is stable topology. "

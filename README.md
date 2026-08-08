@@ -33,6 +33,10 @@ higher-quality typing — on a local LLM executed **through Hoglah**
 [`docs/requirements.md`](docs/requirements.md), and the initial
 [`docs/architecture.md`](docs/architecture.md). Milcah's own process is described
 in the Cairn format in [`docs/process.cairn.md`](docs/process.cairn.md).
+A point-in-time functional + code review of 0.4.0 is in
+[`docs/review-2026-08-08.md`](docs/review-2026-08-08.md) (findings not yet
+actioned; note F1/H1 — on the deterministic default path `global_coherence`
+is 1.0 for every input).
 
 ```bash
 milcah extract framework.md                              # deterministic baseline

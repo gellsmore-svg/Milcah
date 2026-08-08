@@ -13,6 +13,9 @@ Pull typed `ReasoningUnit`s out of a `Framework`. Two extractors sit behind one
 
 Dependencies (FR2) are emitted as edges: a bridge/conclusion unit `depends_on`
 the unit it follows from.
+
+Marker matching (review H2): word-boundary anchors, earliest-in-sentence wins
+across types, and a short negation window rejects inverted markers.
 """
 
 from __future__ import annotations
@@ -23,9 +26,8 @@ from typing import Protocol
 
 from milcah.models import Framework, ReasoningUnit, ReasoningUnitType
 
-# Marker phrases per type, in priority order (most distinctive first). A sentence
-# is typed by the first type with a matching marker; unmatched sentences are
-# claims. Markers are recorded on the unit as provenance.
+# Marker phrases per type. Matching is no longer "first list wins": we score by
+# earliest character position in the sentence (review H2).
 _MARKER_RULES: list[tuple[ReasoningUnitType, tuple[str, ...]]] = [
     (ReasoningUnitType.CONCLUSION, (
         "in conclusion", "we conclude", "this proves", "therefore we", "ultimately",
@@ -60,21 +62,133 @@ _MARKER_RULES: list[tuple[ReasoningUnitType, tuple[str, ...]]] = [
 # Bridge/conclusion units rest on what came before them.
 _DEPENDENT_TYPES = {ReasoningUnitType.BRIDGE, ReasoningUnitType.CONCLUSION}
 
-_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+# Discourse markers that only count near sentence start (avoid "clearly printed").
+_INITIAL_REQUIRED = {
+    "therefore", "thus", "hence", "consequently", "in conclusion", "in sum",
+    "in summary", "ultimately", "as a result", "it follows", "obviously",
+    "clearly", "of course", "needless to say", "everyone knows", "self-evidently",
+    "it goes without saying", "because", "so that",
+}
+
+# Negation tokens that invert a following marker (window of ~4 words).
+_NEGATION = re.compile(
+    r"\b(not|never|no|n't|cannot|can't|don't|doesn't|didn't|isn't|aren't|"
+    r"wasn't|weren't|without|hardly|rarely|neither)\b",
+    re.I,
+)
+
+# Abbreviations / initials that should not end a sentence (review H3).
+_ABBREV = {
+    "dr", "mr", "mrs", "ms", "prof", "sr", "jr", "st", "ave", "fig", "eq",
+    "eqs", "vol", "no", "nos", "pp", "p", "cf", "vs", "etc", "al", "eg", "ie",
+    "approx", "dept", "univ", "ed", "eds", "rev", "gen", "lt", "col", "sgt",
+}
+
+
+def _marker_pattern(marker: str) -> re.Pattern[str]:
+    # Word-boundary-ish: multi-word phrases get flexible whitespace.
+    parts = [re.escape(p) for p in marker.split()]
+    body = r"\s+".join(parts)
+    return re.compile(rf"(?<![\w]){body}(?![\w])", re.I)
+
+
+_COMPILED: list[tuple[ReasoningUnitType, str, re.Pattern[str]]] = [
+    (unit_type, marker, _marker_pattern(marker))
+    for unit_type, markers in _MARKER_RULES
+    for marker in markers
+]
+
+
+def _negated_at(lowered: str, match_start: int) -> bool:
+    """True if a negation appears in a short window before the match."""
+    window = lowered[max(0, match_start - 40) : match_start]
+    # Last ~4 tokens in the window.
+    tokens = re.findall(r"[a-z']+", window)
+    tail = tokens[-4:] if tokens else []
+    return any(_NEGATION.fullmatch(t) for t in tail)
 
 
 def split_sentences(text: str) -> list[str]:
-    return [s.strip() for s in _SENTENCE_SPLIT.split(text) if s.strip()]
+    """Split on sentence boundaries without fracturing common abbreviations (H3)."""
+    if not text or not text.strip():
+        return []
+    # Protect known abbreviations and single-letter initials (e.g. "J. Smith").
+    protected = text
+    placeholders: list[str] = []
+
+    def _hold(match: re.Match[str]) -> str:
+        placeholders.append(match.group(0))
+        return f"\x00{len(placeholders) - 1}\x00"
+
+    # Multi-dot Latin abbreviations first (e.g. / i.e.).
+    protected = re.sub(r"\b([Ee]\.[Gg]\.|[Ii]\.[Ee]\.)", _hold, protected)
+    # Fig. / Dr. / p. / single initials
+    protected = re.sub(
+        r"\b([A-Za-z]{1,12})\.(?=\s|$)",
+        lambda m: _hold(m) if m.group(1).lower().rstrip(".") in _ABBREV or (
+            len(m.group(1)) == 1 and m.group(1).isalpha()
+        ) else m.group(0),
+        protected,
+    )
+    # Also protect "e.g." / "i.e." written with internal dots already partially handled.
+
+    parts = re.split(r"(?<=[.!?])\s+", protected)
+    out: list[str] = []
+    for part in parts:
+        restored = part
+        for i, original in enumerate(placeholders):
+            restored = restored.replace(f"\x00{i}\x00", original)
+        cleaned = restored.strip()
+        if cleaned:
+            out.append(cleaned)
+    return out
 
 
 def classify_sentence(sentence: str) -> tuple[ReasoningUnitType, list[str]]:
-    """Return the (type, matched-markers) for one sentence."""
+    """Return the (type, matched-markers) for one sentence.
+
+    Earliest non-negated word-boundary match wins across all types (H2).
+    """
     lowered = sentence.lower()
-    for unit_type, markers in _MARKER_RULES:
-        hit = [m for m in markers if m in lowered]
-        if hit:
-            return unit_type, hit
-    return ReasoningUnitType.CLAIM, []
+    best: tuple[int, int, ReasoningUnitType, str] | None = None
+    # best = (start, -length preference for longer phrases, type, marker)
+    for unit_type, marker, pattern in _COMPILED:
+        for m in pattern.finditer(lowered):
+            if _negated_at(lowered, m.start()):
+                continue
+            start = m.start()
+            # Discourse markers only when little/no prose precedes them (H2).
+            if marker in _INITIAL_REQUIRED:
+                prefix = lowered[:start].strip()
+                if prefix and prefix not in {"and", "but", "so", "yet", "for", "thus"}:
+                    continue
+            key = (start, -len(marker), unit_type.value, marker)
+            if best is None or key < (best[0], best[1], best[2].value, best[3]):
+                best = (start, -len(marker), unit_type, marker)
+    if best is None:
+        return ReasoningUnitType.CLAIM, []
+    return best[2], [best[3]]
+
+
+def strip_markdown_noise(text: str) -> str:
+    """Drop heading markers, list bullets, and fenced code for extraction (M2)."""
+    lines: list[str] = []
+    in_fence = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        # Headings / bullets / blockquotes → keep the prose only.
+        stripped = re.sub(r"^#{1,6}\s+", "", stripped)
+        stripped = re.sub(r"^[-*+]\s+", "", stripped)
+        stripped = re.sub(r"^\d+\.\s+", "", stripped)
+        stripped = re.sub(r"^>\s?", "", stripped)
+        if stripped:
+            lines.append(stripped)
+    return "\n".join(lines)
 
 
 class Extractor(Protocol):
@@ -87,7 +201,8 @@ class RuleBasedExtractor:
     def extract(self, framework: Framework) -> list[ReasoningUnit]:
         units: list[ReasoningUnit] = []
         for segment in framework.segments:
-            for sentence in split_sentences(segment.text):
+            prose = strip_markdown_noise(segment.text)
+            for sentence in split_sentences(prose):
                 unit_type, markers = classify_sentence(sentence)
                 unit = ReasoningUnit.make(
                     framework_id=framework.id,

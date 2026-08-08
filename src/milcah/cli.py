@@ -316,8 +316,31 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
         for k in ("assumption_load", "bridge_load", "unresolved_load", "dependency_depth", "fallacy_load"):
             print(f"    {k}: {m[k]}")
         print("  coherence (FR9):")
-        for k in ("global_coherence", "breadth", "ontological_completeness", "fracture_density", "uncertainty_burden"):
-            print(f"    {k}: {m[k]}")
+        gc = m.get("global_coherence")
+        if gc is None:
+            print(
+                "    global_coherence: (suppressed — structural scaffold only; "
+                f"structural_placement_ratio={m.get('structural_placement_ratio')})"
+            )
+        else:
+            print(f"    global_coherence: {gc}")
+        for k in (
+            "structural_placement_ratio",
+            "breadth",
+            "foundation_ratio",
+            "ontological_completeness",
+            "fracture_density",
+            "uncertainty_burden",
+        ):
+            if k == "structural_placement_ratio" and gc is None:
+                continue  # already printed with the suppression note
+            if k in m:
+                print(f"    {k}: {m[k]}")
+        if m.get("placement_scaffold"):
+            print(
+                "  note: placement_scaffold=true — deterministic type/tree "
+                "placement only; global_coherence is not argument quality"
+            )
         print("  (excludes popularity / confidence / institutional acceptance / model-agreement)")
     return 0
 
