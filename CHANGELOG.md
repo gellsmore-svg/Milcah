@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-08-21
+
+### Changed
+- Lift the M3 extra cap ``hoglah>=0.10.4,<0.11`` to ``hoglah>=0.10.4`` so
+  ``milcah[hoglah]`` co-installs with shipped Hoglah 0.11.0. No recorded
+  incompatibility; the cap was precautionary.
+
 ## [0.5.0] — 2026-08-08
 
 **Action the 2026-08-08 functional/code review**
