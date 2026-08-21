@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-08-21
+
+### Fixed
+- ``reason`` / ``challenge`` / ``fallacy`` / ``rounds`` / ``orchestrate`` exit
+  2 with ``pip install 'milcah[hoglah]'`` when Hoglah is not installed.
+
 ## [0.5.1] — 2026-08-21
 
 ### Changed

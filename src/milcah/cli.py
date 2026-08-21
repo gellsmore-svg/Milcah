@@ -35,6 +35,17 @@ from milcah.web_research import WebResearchClient, WebResearchConfig
 
 DEFAULT_STORE_DIR = str(Path.home() / ".milcah" / "snapshots")
 
+
+def _require_hoglah() -> None:
+    try:
+        import hoglah  # noqa: F401
+    except ImportError:
+        print(
+            "This command needs Hoglah. Install the extra: pip install 'milcah[hoglah]'",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+
 PURPOSE = (
     "Milcah — the Coherence Engine.\n"
     "Recursively pressure-tests frameworks for coherence; it does not decide truth.\n"
@@ -154,6 +165,7 @@ def _web_research_client(args: argparse.Namespace) -> WebResearchClient | None:
 
 
 def _cmd_reason(args: argparse.Namespace) -> int:
+    _require_hoglah()
     framework = _read_source(args.source, args.source_type, args.title)
     units = extract(framework, _build_extractor(args))
     ontology = build_ontology(framework.id, units)
@@ -183,6 +195,7 @@ def _cmd_reason(args: argparse.Namespace) -> int:
 
 
 def _cmd_challenge(args: argparse.Namespace) -> int:
+    _require_hoglah()
     framework = _read_source(args.source, args.source_type, args.title)
     units = extract(framework, _build_extractor(args))
     cfg = HoglahExtractorConfig(
@@ -212,6 +225,7 @@ def _cmd_challenge(args: argparse.Namespace) -> int:
 
 
 def _cmd_fallacy(args: argparse.Namespace) -> int:
+    _require_hoglah()
     framework = _read_source(args.source, args.source_type, args.title)
     units = extract(framework, _build_extractor(args))
     cfg = HoglahExtractorConfig(
@@ -237,6 +251,7 @@ def _cmd_fallacy(args: argparse.Namespace) -> int:
 
 
 def _cmd_rounds(args: argparse.Namespace) -> int:
+    _require_hoglah()
     framework = _read_source(args.source, args.source_type, args.title)
     units = extract(framework, _build_extractor(args))
     cfg = HoglahExtractorConfig(
@@ -365,6 +380,7 @@ def _open_store(args: argparse.Namespace):
 
 def _cmd_orchestrate(args: argparse.Namespace) -> int:
     """Role-based multi-LLM orchestration over Hoglah (ADR-001)."""
+    _require_hoglah()
     framework = _read_source(args.source, args.source_type, args.title)
     units = extract(framework, _build_extractor(args))
     models = {role: getattr(args, f"{role}_model")
