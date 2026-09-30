@@ -69,3 +69,17 @@ def test_serve_closes_the_store_on_ctrl_c(monkeypatch) -> None:
 def test_close_store_tolerates_stores_without_close() -> None:
     """JsonFileStore holds no connection and has no close()."""
     cli._close_store(object())  # must not raise
+
+
+def test_mongo_location_omits_userinfo_and_query() -> None:
+    shown = cli._mongo_location(
+        "db", "mongodb://user:secret@localhost:27017/db?authSource=admin"
+    )
+    assert "localhost:27017" in shown
+    assert "/db" in shown
+    assert "user" not in shown
+    assert "secret" not in shown
+    assert "authSource" not in shown
+    srv = cli._mongo_location("db", "mongodb+srv://user:secret@cluster.example/db")
+    assert srv.startswith("mongo db.snapshots (mongodb+srv://cluster.example")
+    assert "secret" not in srv

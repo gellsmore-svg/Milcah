@@ -16,6 +16,7 @@ protocol — nothing here imports it.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -132,6 +133,24 @@ def _framework_row(snaps: list["Snapshot"]) -> dict[str, Any]:
     }
 
 
+_FRAMEWORK_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,128}$")
+
+
+def _framework_dir(root: Path, framework_id: str) -> Path:
+    """One directory under *root*, or ValueError.
+
+    The id is a single slug. Absolute ids and parent segments are rejected,
+    and the resolved directory must stay inside *root*.
+    """
+    if not isinstance(framework_id, str) or _FRAMEWORK_ID.fullmatch(framework_id) is None:
+        raise ValueError("invalid framework id")
+    base = root.resolve()
+    candidate = (base / framework_id).resolve()
+    if candidate.parent != base:
+        raise ValueError("framework id escapes the snapshot root")
+    return candidate
+
+
 class JsonFileStore:
     """Dependency-free store: one JSON file per snapshot under
     `<root>/<framework_id>/<created_at>__<snapshot_id>.json`. History is the
@@ -141,7 +160,7 @@ class JsonFileStore:
         self.root = Path(root)
 
     def _dir(self, framework_id: str) -> Path:
-        return self.root / framework_id
+        return _framework_dir(self.root, framework_id)
 
     def save(self, snapshot: Snapshot) -> str:
         d = self._dir(snapshot.framework_id)
@@ -182,7 +201,10 @@ class JsonFileStore:
         for directory in self.root.iterdir():
             if not directory.is_dir():
                 continue
-            snaps = self.history(directory.name)
+            try:
+                snaps = self.history(directory.name)
+            except ValueError:
+                continue
             if snaps:
                 rows.append(_framework_row(snaps))
         return sorted(rows, key=lambda r: r["latest_created_at"], reverse=True)

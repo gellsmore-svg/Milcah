@@ -1,3 +1,5 @@
+import pytest
+
 from milcah.extraction import RuleBasedExtractor, extract
 from milcah.ingestion import ingest_text
 from milcah.metrics import compute_metrics
@@ -46,6 +48,41 @@ def test_jsonfilestore_roundtrip_and_history(tmp_path):
 def test_history_unknown_framework_is_empty(tmp_path):
     assert JsonFileStore(tmp_path).history("nope") == []
     assert JsonFileStore(tmp_path).load("nope", "x") is None
+
+
+def test_framework_id_stays_inside_the_store_root(tmp_path):
+    store = JsonFileStore(tmp_path)
+    fw, units, onto, metrics = _analyse("A primitive. A claim rests on it.")
+    good = build_snapshot(fw, units, onto, metrics, created_at="2026-06-23T10:00:00Z")
+    store.save(good)
+
+    for framework_id in ("..", "../etc", ".hidden", "a/b"):
+        escaped = Snapshot(
+            framework_id=framework_id,
+            framework_title="x",
+            created_at="2026-06-23T10:00:00Z",
+            metrics={"global_coherence": 0.1},
+        )
+        with pytest.raises(ValueError, match="invalid framework id|escapes"):
+            store.save(escaped)
+
+    dotted = Snapshot(
+        framework_id="a..b",
+        framework_title="dotted",
+        created_at="2026-06-23T11:00:00Z",
+        metrics={"global_coherence": 0.2},
+    )
+    store.save(dotted)
+    assert store.history("a..b")[0].framework_title == "dotted"
+    assert (tmp_path / "a..b").parent == tmp_path
+
+    hidden = tmp_path / ".hidden"
+    hidden.mkdir()
+    (hidden / "x.json").write_text("{}", encoding="utf-8")
+    ids = {row["framework_id"] for row in store.frameworks()}
+    assert fw.id in ids
+    assert "a..b" in ids
+    assert ".hidden" not in ids
 
 
 def test_history_skips_corrupt_snapshot_files(tmp_path):

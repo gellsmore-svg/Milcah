@@ -366,13 +366,27 @@ def _close_store(store: Any) -> None:
         store.close()
 
 
+def _mongo_location(database: str, uri: str) -> str:
+    """Host and database only. Userinfo and query strings stay off the page."""
+    from urllib.parse import urlsplit, urlunsplit
+
+    parts = urlsplit(uri)
+    host = parts.hostname or ""
+    if host and ":" in host:
+        host = f"[{host}]"
+    if parts.port:
+        host = f"{host}:{parts.port}"
+    shown = urlunsplit((parts.scheme, host, parts.path, "", ""))
+    return f"mongo {database}.snapshots ({shown})"
+
+
 def _open_store(args: argparse.Namespace):
     """Build the FR10 store the user asked for; returns (store, human-location)."""
     if getattr(args, "store", "json") == "mongo":
         from milcah.store_mongo import make_mongo_store
 
         store = make_mongo_store(uri=args.mongo_uri, database=args.mongo_db)
-        return store, f"mongo {args.mongo_db}.snapshots ({args.mongo_uri})"
+        return store, _mongo_location(args.mongo_db, args.mongo_uri)
     from milcah.persistence import JsonFileStore
 
     return JsonFileStore(args.store_dir), args.store_dir

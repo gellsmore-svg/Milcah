@@ -160,7 +160,10 @@ def create_app(store: Store, store_label: str = "snapshots") -> FastAPI:
     app.state.store = store
 
     def _history_or_404(framework_id: str) -> list[Snapshot]:
-        snaps = store.history(framework_id)
+        try:
+            snaps = store.history(framework_id)
+        except ValueError as exc:
+            raise HTTPException(400, "invalid framework id") from exc
         if not snaps:
             raise HTTPException(404, f"no snapshots for framework: {framework_id}")
         return snaps
@@ -176,7 +179,10 @@ def create_app(store: Store, store_label: str = "snapshots") -> FastAPI:
 
     @app.get("/api/frameworks/{framework_id}/snapshots/{snapshot_id}")
     def api_snapshot(framework_id: str, snapshot_id: str) -> dict[str, Any]:
-        snap = store.load(framework_id, snapshot_id)
+        try:
+            snap = store.load(framework_id, snapshot_id)
+        except ValueError as exc:
+            raise HTTPException(400, "invalid framework id") from exc
         if snap is None:
             raise HTTPException(404, f"snapshot not found: {snapshot_id}")
         return {"ok": True, "snapshot": snap.to_jsonable()}

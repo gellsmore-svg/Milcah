@@ -86,3 +86,8 @@ def test_missing_framework_and_snapshot_404(client) -> None:
     assert client.get("/frameworks/nope").status_code == 404
     assert client.get("/frameworks/fw1/snapshots/nope").status_code == 404
     assert client.get("/api/frameworks/nope/trend").status_code == 404
+
+
+def test_invalid_framework_id_is_400(client) -> None:
+    assert client.get("/api/frameworks/.hidden/trend").status_code == 400
+    assert client.get("/api/frameworks/.hidden/snapshots/abc").status_code == 400

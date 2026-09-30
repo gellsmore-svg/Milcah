@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+- A snapshot framework id is one slug, and its directory stays inside the store root.
+- Web research connects to the address it checked, and refuses shared, multicast, and embedded non-public addresses.
+- The Mongo store label shows scheme, host, port, and path.
+
 ## [0.5.2] — 2026-08-21
 
 ### Fixed
